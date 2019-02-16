@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package raft.proto;
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
+
+enum EntryType {
+    System = 0;
+    Normal = 1;
+}
+
+message Entry {
+    EntryType Type = 1;
+    int64 Term = 3;
+    int64 Index = 4;
+    bytes Data = 5;
+    bytes Digest = 6;
+}
+
+
+enum MessageType {
+    HeartBeatRequest = 0;
+    HeartBeatResponse = 1;
+}
+
+message RpcMessage {
+    MessageType Type = 1;
+    int64 Term = 2;
+}
+
+message RequestVoteRequest {
+    string CandidateId = 1;
+    int64 Term = 2;
+
+}
+
+message RequestVoteResponse {
+
+}
+
+message AppendEntriesRequest {
+
+}
+
+message AppendEntriesResponse {
+
+}
+
+message CompactLogRequest {
+
+}
+
+message InstallSnapshotRequest {
+
+}
+
+message InstallSnapshotResponse {
+
+}
+
