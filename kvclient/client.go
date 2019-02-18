@@ -1,4 +1,4 @@
-package kv_client
+package kvclient
 
 type Client struct {
 }

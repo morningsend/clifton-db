@@ -12,9 +12,9 @@ func createLAN(peerIds []raft.ID) *raft.LAN {
 	return raft.CreateFullyConnected(peerIds, 0)
 }
 
-func createRaftCluster(peerIds []raft.ID, lan *raft.LAN) ([]raft.Cluster, []raft.RaftFSM) {
+func createRaftCluster(peerIds []raft.ID, lan *raft.LAN) ([]*raft.Cluster, []raft.RaftFSM) {
 	clusterSize := len(peerIds)
-	clusters := make([]raft.Cluster, clusterSize, clusterSize)
+	clusters := make([]*raft.Cluster, clusterSize, clusterSize)
 
 	for i:= 0; i < clusterSize; i++ {
 		clusters[i] = raft.NewCluster(peerIds[i], peerIds)

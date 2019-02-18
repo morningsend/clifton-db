@@ -1,19 +1,19 @@
 package raft
 
 import (
-
+	"github.com/zl14917/MastersProject/pkg/raft/rpc"
 	"sync"
 )
 
 type LAN struct {
-	connections map[ID]map[ID]chan interface{}
+	connections map[ID]map[ID]chan rpc.Message
 	done chan bool
 	shutdownOnce sync.Once
 }
 
 func CreateFullyConnected(peerIds []ID, bufferSize int) *LAN {
 
-	network := make(map[ID]map[ID]chan interface{})
+	network := make(map[ID]map[ID]chan rpc.Message)
 
 	for _, id1 := range peerIds {
 		for _, id2 := range peerIds {
@@ -24,13 +24,13 @@ func CreateFullyConnected(peerIds []ID, bufferSize int) *LAN {
 
 			neighbours, ok := network[id1]
 			if !ok {
-				neighbours = make(map[ID]chan interface{})
+				neighbours = make(map[ID]chan rpc.Message)
 				network[id1] = neighbours
 			}
 
 			_, ok = neighbours[id2]
 			if !ok {
-				neighbours[id2] = make(chan interface{})
+				neighbours[id2] = make(chan rpc.Message)
 			}
 		}
 	}
@@ -43,7 +43,7 @@ func CreateFullyConnected(peerIds []ID, bufferSize int) *LAN {
 	return lan
 }
 
-func (lan *LAN) GetConnection(n1, n2 ID) (conn chan interface{}, ok bool) {
+func (lan *LAN) GetConnection(n1, n2 ID) (conn chan rpc.Message, ok bool) {
 	neighbours, ok := lan.connections[n1]
 	if !ok {
 		return
@@ -53,7 +53,7 @@ func (lan *LAN) GetConnection(n1, n2 ID) (conn chan interface{}, ok bool) {
 	return
 }
 
-func (lan *LAN) GetMulticastConns(node ID) (conns map[ID]chan interface{}, ok bool) {
+func (lan *LAN) GetMulticastConns(node ID) (conns map[ID]chan rpc.Message, ok bool) {
 	conns, ok = lan.connections[node]
 	return
 }
