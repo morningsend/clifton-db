@@ -63,4 +63,5 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 	}
+
 }

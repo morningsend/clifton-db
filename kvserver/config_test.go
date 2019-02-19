@@ -15,10 +15,14 @@ log:
   segment-size: 32MB
 nodes:
   self-id: 1
+  port: 10030
   peers:
     - id: 2
       host: localhost
       port: 10031
+    - id: 3
+      host: localhost
+      port: 10032
 `
 
 func TestDeserializeConfigFile(t *testing.T) {

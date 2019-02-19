@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package kv_client_api;
+
+message GetReq {
+    string key = 1;
+}
+
+message Value {
+    string key = 1;
+    bytes value = 2;
+}
+
+message PutReq {
+    string key = 1;
+    bytes value = 2;
+}
+
+message PutRes {
+    bool success = 1;
+}
+
+
+message Session {
+    string sessionId = 1;
+    repeated Address nodes = 2;
+}
+
+message Client {
+
+}
+
+message Address {
+    string host = 1;
+    uint32 port = 2;
+}
+
+service KVStore {
+    rpc NewSession (Client) returns (Session) {
+    }
+    rpc Get (GetReq) returns (Value) {
+    }
+    rpc Put (PutReq) returns (PutRes) {
+    }
+}
