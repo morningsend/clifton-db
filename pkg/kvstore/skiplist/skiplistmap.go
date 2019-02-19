@@ -1,19 +1,6 @@
 package skiplist
 
-type Key string
-type Value []byte
-
-type MapIterator interface {
-	Next() bool
-	Current() (key Key, value Value)
-}
-
-type Map interface {
-	Get(key Key) (value Value, ok bool)
-	Put(key Key, value Value) (err error)
-	Contains(key Key) (ok bool)
-	Iterator() MapIterator
-}
+import "github.com/zl14917/MastersProject/pkg/kvstore/maps"
 
 type SkipListMap struct {
 	headSentinel *slMapNode
@@ -24,8 +11,8 @@ type SkipListMap struct {
 }
 
 type slMapNode struct {
-	Key   Key
-	Value Value
+	Key   maps.Key
+	Value maps.Value
 	Next  []*slMapNode
 }
 
@@ -33,7 +20,7 @@ type SkipListIterator struct {
 	current *slMapNode
 }
 
-func makeMapNode(key Key, value Value, height int) *slMapNode {
+func makeMapNode(key maps.Key, value maps.Value, height int) *slMapNode {
 	return &slMapNode{
 		Key:   key,
 		Value: value,
@@ -41,7 +28,7 @@ func makeMapNode(key Key, value Value, height int) *slMapNode {
 	}
 }
 
-func NewSkipListMap() Map {
+func NewSkipListMap() maps.Map {
 	maxLevel := 6
 	sentinel := makeMapNode("", nil, maxLevel)
 	return &SkipListMap{
@@ -52,7 +39,7 @@ func NewSkipListMap() Map {
 	}
 }
 
-func (m *SkipListMap) Get(key Key) (value Value, ok bool) {
+func (m *SkipListMap) Get(key maps.Key) (value maps.Value, ok bool) {
 	node, exists := m.searchNode(key)
 	if ! exists {
 		return nil, false
@@ -60,19 +47,19 @@ func (m *SkipListMap) Get(key Key) (value Value, ok bool) {
 	return node.Value, true
 }
 
-func (m *SkipListMap) Contains(key Key) (bool) {
+func (m *SkipListMap) Contains(key maps.Key) (bool) {
 	_, exists := m.searchNode(key)
 	return exists
 }
 
-func (m *SkipListMap) searchNode(key Key) (node *slMapNode, exists bool) {
+func (m *SkipListMap) searchNode(key maps.Key) (node *slMapNode, exists bool) {
 	return
 }
 
 func (m *SkipListMap) linkNode(previous *slMapNode, newNode *slMapNode) {
 
 }
-func (m *SkipListMap) Put(key Key, value Value) (err error) {
+func (m *SkipListMap) Put(key maps.Key, value maps.Value) (err error) {
 	if m.head == nil {
 		m.head = makeMapNode(key, value, m.maxLevel)
 		return
@@ -89,7 +76,7 @@ func (m *SkipListMap) Put(key Key, value Value) (err error) {
 	return nil
 }
 
-func (m *SkipListMap) Iterator() MapIterator {
+func (m *SkipListMap) Iterator() maps.MapIterator {
 	return &SkipListIterator{
 		current: m.head,
 	}
@@ -103,7 +90,7 @@ func (i *SkipListIterator) Next() bool {
 	return false
 }
 
-func (i *SkipListIterator) Current() (key Key, value Value) {
+func (i *SkipListIterator) Current() (key maps.Key, value maps.Value) {
 	if i.current == nil {
 		return
 	}

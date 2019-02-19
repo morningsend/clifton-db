@@ -7,6 +7,6 @@ type Config interface {
 }
 
 type ConfigReader interface {
-	Read(reader io.Reader) Config
+	ReadYaml(reader io.Reader) Config
+	ReadJson(reader io.Reader) Config
 }
-
