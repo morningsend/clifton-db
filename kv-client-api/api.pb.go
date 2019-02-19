@@ -4,12 +4,12 @@
 package kv_client_api
 
 import (
-	context "context"
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	grpc "google.golang.org/grpc"
-	io "io"
-	math "math"
+	"context"
+	"fmt"
+	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
+	"io"
+	"math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

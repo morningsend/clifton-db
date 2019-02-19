@@ -1,12 +1,17 @@
-package cliftondb
+package main
 
 import (
 	"flag"
 	"fmt"
 	"github.com/zl14917/MastersProject/kvserver"
+	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
+	"log"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 func init() {
@@ -30,24 +35,56 @@ func resolveAbsConfigPath(path string) (string, error) {
 	return filepath.Join(cwd, path), nil
 }
 
-func main() {
+const fileContent = `
+data:
+  path-dir: /var/cliftondb/data
+log:
+  path-dir: /var/cliftondb/logs
+  segment-size: 32MB
+nodes:
+  self-id: 1
+  port: 10030
+  peers:
+    - id: 2
+      host: localhost
+      port: 10031
+    - id: 3
+      host: localhost
+      port: 10032
+`
+
+const TESTING = true
+
+func LoadConfig(config *kvserver.Config) (err error) {
+
+	if TESTING {
+		reader := strings.NewReader(fileContent)
+		yamlDecoder := yaml.NewDecoder(reader)
+		err := yamlDecoder.Decode(config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+			return err
+		}
+		return nil
+	}
+
 	flag.Parse()
 	if *configPath == "" {
 		fmt.Fprintf(os.Stderr, "Error reading config path, missing.")
-		os.Exit(-1)
+		return err
 	}
 	absPath, err := resolveAbsConfigPath(*configPath)
 
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error resolving config file path: %s: %v\n", *configPath, err)
-		os.Exit(-1)
+		return err
 	}
 
 	file, err := os.Open(absPath)
 
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error opening config file: absolute path: %s: %v\n", absPath, err)
-		os.Exit(-1)
+		return err
 	}
 	defer func() {
 		err := file.Close()
@@ -56,12 +93,35 @@ func main() {
 		}
 	}()
 
-	var config kvserver.Config
 	yamlDecoder := yaml.NewDecoder(file)
-	err = yamlDecoder.Decode(&config)
+	err = yamlDecoder.Decode(config)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func main() {
+	var config kvserver.Config
+	err := LoadConfig(&config)
+	if err != nil {
+		os.Exit(-1)
 	}
 
+	listener, err := net.Listen("tcp", "localhost:"+strconv.Itoa(int(config.Nodes.Port)))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot listen on port", config.Nodes.Port)
+		os.Exit(-1)
+	}
+
+	kvServer := kvserver.KVServer{}
+	log.Println("Starting grpc server on port:", config.Nodes.Port)
+	grpcServer := grpc.NewServer()
+	kvServer.Register(grpcServer)
+
+	if err = grpcServer.Serve(listener); err != nil {
+		log.Fatalf("error serving grpc: %v\n", err)
+	}
 }
