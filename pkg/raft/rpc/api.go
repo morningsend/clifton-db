@@ -27,12 +27,13 @@ type AppendEntriesReq struct {
 	LeaderId          int
 	LeaderCommitIndex int
 	PrevLogIndex      int
+	PrevLogTerm       int
 	Entries           []interface{}
 }
 
 type AppendEntriesReply struct {
 	Message
-	Term int
+	Term    int
 	Success bool
 }
 
@@ -49,6 +50,7 @@ type RequestVote struct {
 
 type VotedFor struct {
 	Message
+	VoterId     int
 	Term        int
 	VoteGranted bool
 }

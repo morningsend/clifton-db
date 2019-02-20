@@ -20,13 +20,15 @@ func ConnectToCluster(cluster *Cluster, virtualLan *LAN) (Comms, error) {
 		return nil, fmt.Errorf("can't connect to cluster")
 	}
 
-	return NewChannelComms(conns), nil
+	return NewChannelComms(cluster.SelfID, conns), nil
 }
 
 type TCPNetworkComms struct {
 }
 
 type ChannelComms struct {
+	SelfId ID
+
 	broadcastOut chan rpc.Message
 	rpcChannels  map[ID]chan rpc.Message
 	replyChannel chan rpc.Message
@@ -34,25 +36,28 @@ type ChannelComms struct {
 	doneOnce     sync.Once
 }
 
-func NewChannelComms(conns map[ID]chan rpc.Message) *ChannelComms {
-
+func NewChannelComms(selfId ID, conns map[ID]chan rpc.Message) *ChannelComms {
 	comms := &ChannelComms{
+		SelfId:       selfId,
 		broadcastOut: make(chan rpc.Message),
 		rpcChannels:  conns,
 		replyChannel: make(chan rpc.Message),
 		doneOnce:     sync.Once{},
 	}
+
 	return comms
 }
 
 func (comms *ChannelComms) Start() {
-	fanOut := func(in chan rpc.Message, receivers map[ID]chan rpc.Message) {
-		select {
-		case msg := <-in:
+	fanOut := func(in <-chan rpc.Message, receivers map[ID]chan rpc.Message) {
+		for {
+			//fmt.Println(comms.SelfId, "fanout waiting for msg")
+			msg := <-in
+			//fmt.Println(comms.SelfId, "fanout got msg", msg, "broadcasting")
 			for _, r := range receivers {
 				select {
 				case r <- msg:
-
+					//fmt.Println(comms.SelfId, "broadcast sent to", id)
 				}
 			}
 		}
@@ -60,6 +65,7 @@ func (comms *ChannelComms) Start() {
 
 	pipeOut := func(c <-chan rpc.Message, out chan rpc.Message) {
 		for msg := range c {
+			//fmt.Println("pipeout", msg)
 			out <- msg
 		}
 	}
@@ -75,6 +81,7 @@ func (comms *ChannelComms) Start() {
 }
 
 func (comms *ChannelComms) BroadcastRpc(ctx context.Context, msg rpc.Message) {
+	fmt.Println(msg)
 	go func() {
 		for {
 			select {
@@ -92,14 +99,13 @@ func (comms *ChannelComms) Rpc(ctx context.Context, id ID, msg rpc.Message) {
 	if !ok {
 		panic(fmt.Errorf("failed to send rpc: connection with id %d does not exist", id))
 	}
+	fmt.Println(id, msg)
 	go func() {
-		for {
-			select {
-			case conn <- msg:
-				return
-			case <-ctx.Done():
-				return
-			}
+		select {
+		case conn <- msg:
+			return
+		case <-ctx.Done():
+			return
 		}
 	}()
 }
@@ -116,5 +122,3 @@ func (comms *ChannelComms) shutdown() {
 func (comms *ChannelComms) Close() {
 	comms.doneOnce.Do(comms.shutdown)
 }
-
-

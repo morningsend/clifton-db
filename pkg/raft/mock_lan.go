@@ -6,32 +6,27 @@ import (
 )
 
 type LAN struct {
-	connections map[ID]map[ID]chan rpc.Message
-	done chan bool
+	connections  map[ID]map[ID]chan rpc.Message
+	done         chan bool
 	shutdownOnce sync.Once
 }
 
 func CreateFullyConnected(peerIds []ID, bufferSize int) *LAN {
+	channels := make(map[ID]chan rpc.Message, len(peerIds))
+	for _, peer := range peerIds {
+		channels[peer] = make(chan rpc.Message)
+	}
 
 	network := make(map[ID]map[ID]chan rpc.Message)
 
 	for _, id1 := range peerIds {
+		network[id1] = make(map[ID]chan rpc.Message, len(peerIds)-1)
 		for _, id2 := range peerIds {
 
 			if id1 == id2 {
 				continue
 			}
-
-			neighbours, ok := network[id1]
-			if !ok {
-				neighbours = make(map[ID]chan rpc.Message)
-				network[id1] = neighbours
-			}
-
-			_, ok = neighbours[id2]
-			if !ok {
-				neighbours[id2] = make(chan rpc.Message)
-			}
+			network[id1][id2] = channels[id2]
 		}
 	}
 
@@ -59,7 +54,7 @@ func (lan *LAN) GetMulticastConns(node ID) (conns map[ID]chan rpc.Message, ok bo
 }
 
 func (lan *LAN) Close() {
-	go lan.shutdownOnce.Do(func(){
+	go lan.shutdownOnce.Do(func() {
 		for _, conns := range lan.connections {
 			for _, conn := range conns {
 				close(conn)

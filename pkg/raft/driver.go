@@ -38,7 +38,9 @@ func (d *testDriver) Shutdown() <-chan struct{} {
 
 func (d *testDriver) Run(ctx context.Context) {
 	ticker := time.NewTicker(d.tickInterval)
+	defer ticker.Stop()
 	tickChan := ticker.C
+
 	log.Println(d.fsm.Id(), "tick interval", d.tickInterval)
 	for {
 		select {
@@ -48,6 +50,8 @@ func (d *testDriver) Run(ctx context.Context) {
 			return
 		case <-tickChan:
 			_ = d.fsm.Tick()
+		case msg := <-d.fsm.GetComms().Reply():
+			d.fsm.ReceiveMsg(msg)
 		}
 	}
 }

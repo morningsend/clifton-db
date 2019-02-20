@@ -30,7 +30,8 @@ func createRaftCluster(peerIds []raft.ID, lan *raft.LAN) ([]*raft.Cluster, []raf
 		if !ok {
 			os.Exit(1)
 		}
-		comms := raft.NewChannelComms(channels)
+		comms := raft.NewChannelComms(nodeId, channels)
+		comms.Start()
 		fsms[i] = raft.NewRaftFSM(peerIds[i], peerIds, 10+rand.Int()%5, 20+rand.Int()%5, comms)
 	}
 
@@ -53,11 +54,12 @@ func main() {
 
 	for _, fsm := range raftFsms {
 		driver := raft.NewTestDriver()
-		driver.Init(fsm, time.Millisecond*10)
+		driver.Init(fsm, time.Millisecond*100)
 		go driver.Run(ctx)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
+
 	cancel()
 
 	defer virtualLAN.Close()
