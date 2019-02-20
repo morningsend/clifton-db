@@ -1,24 +1,29 @@
 package raft
 
 import (
+	"context"
+	"log"
 	"sync"
 	"time"
 )
 
 type Driver interface {
-	Init()
+	Init(fsm RaftFSM, tickInterval time.Duration)
 	Shutdown() <-chan struct{}
-	Run()
+	Run(ctx context.Context)
 }
 
 type testDriver struct {
 	shutdownInitiated int32
 	shutdownFinished  chan struct{}
 	shutdownOnce      sync.Once
+	tickInterval      time.Duration
+	fsm               RaftFSM
 }
 
-func (d *testDriver) Init() {
-
+func (d *testDriver) Init(fsm RaftFSM, tickInterval time.Duration) {
+	d.fsm = fsm
+	d.tickInterval = tickInterval
 }
 
 func (d *testDriver) Shutdown() <-chan struct{} {
@@ -31,8 +36,20 @@ func (d *testDriver) Shutdown() <-chan struct{} {
 	return d.shutdownFinished
 }
 
-func (d *testDriver) Run() {
-
+func (d *testDriver) Run(ctx context.Context) {
+	ticker := time.NewTicker(d.tickInterval)
+	tickChan := ticker.C
+	log.Println(d.fsm.Id(), "tick interval", d.tickInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			tickChan = nil
+			log.Println(d.fsm.Id(), "done")
+			return
+		case <-tickChan:
+			_ = d.fsm.Tick()
+		}
+	}
 }
 
 func NewTestDriver() Driver {

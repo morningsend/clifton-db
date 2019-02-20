@@ -27,10 +27,13 @@ const (
 type CommonState struct {
 	CurrentTerm int
 	VotedFor    ID
-	Logs        []interface{}
 
 	CommitIndex      int
 	LastAppliedIndex int
+}
+
+func (s *CommonState) NextTerm() {
+	s.CurrentTerm++
 }
 
 type CandidateState struct {
@@ -45,7 +48,37 @@ func (c *CandidateState) ResetVotes() {
 	}
 }
 
+func (s *CandidateState) SetVote(id ID) {
+	s.VotesReceived[id] = true
+}
+
+func (s *CandidateState) HasMajority() bool {
+	return s.CountVote() >= s.Majority
+}
+
+func (c *CandidateState) CountVote() int {
+	count := 0
+	for _, v := range c.VotesReceived {
+		if v {
+			count++
+		}
+	}
+	return count
+}
+
 type LeaderState struct {
+	NextIndices  map[ID]int
+	MatchIndices map[ID]int
+}
+
+func (s *LeaderState) Reset() {
+	for k, _ := range s.NextIndices {
+		s.NextIndices[k] = 0
+	}
+
+	for k, _ := range s.MatchIndices {
+		s.MatchIndices[k] = 0
+	}
 }
 
 type FollowerState struct {
@@ -55,13 +88,14 @@ type FollowerState struct {
 type RaftFSM interface {
 	raftFSM()
 	Id() ID
-	// states
 	Role() Role
-	CurrentTerm() int
+	GetCurrentTerm() int
 	CommitIndex() int
 	LastAppliedIndex() int
 	VotedFor() ID
 	Log() RaftLog
+
+	Tick() int
 }
 
 type RealRaftFSM struct {
@@ -81,9 +115,9 @@ type RealRaftFSM struct {
 	log              RaftLog
 }
 
-func NewRaftFSM(id int, peers []ID, electionTimeout int, heartBeatTimeout int) RaftFSM {
+func NewRaftFSM(id ID, peers []ID, electionTimeout int, heartBeatTimeout int, comms Comms) RaftFSM {
 	fsm := RealRaftFSM{
-		id:               ID(id),
+		id:               id,
 		role:             Follower,
 		currentTick:      0,
 		electionTimeout:  electionTimeout,
@@ -91,6 +125,10 @@ func NewRaftFSM(id int, peers []ID, electionTimeout int, heartBeatTimeout int) R
 		peers:            peers,
 		log:              NewInMemoryLog(),
 		logger:           log.New(os.Stdout, "[raft]", log.LstdFlags),
+		comms:            comms,
+		CandidateState: CandidateState{
+			VotesReceived: make(map[ID]bool),
+		},
 	}
 	fsm.BecomeFollower()
 
@@ -107,7 +145,7 @@ func (r *RealRaftFSM) Id() ID {
 	return r.id
 }
 
-func (r *RealRaftFSM) CurrentTerm() int {
+func (r *RealRaftFSM) GetCurrentTerm() int {
 	return r.CommonState.CurrentTerm
 }
 
@@ -134,6 +172,9 @@ func (r *RealRaftFSM) tick() (int) {
 	return r.currentTick
 }
 
+func (r *RealRaftFSM) Tick() int {
+	return r.tick()
+}
 func (r *RealRaftFSM) checkTimeout() {
 	switch r.role {
 	case Follower:
@@ -173,19 +214,22 @@ func (r *RealRaftFSM) BecomeFollower() {
 func (r *RealRaftFSM) BecomeCandidate() {
 	r.CandidateState.ElectionDeadline = r.currentTick + r.electionTimeout
 	r.role = Candidate
-	r.VotesReceived = make(map[ID]bool, len(r.peers))
+	r.CurrentTerm++
+	r.ResetVotes()
+	r.SetVote(r.id)
 
+	index, term := r.log.GetLastLogTermIndex()
 	requestVoteMsg := &rpc.RequestVote{
 		CandidateId:  int(r.id), // TODO: refactor ID type to its own package,
-		Term:         r.CurrentTerm(),
-		LastLogIndex: 0,
-		LastLogTerm:  0,
+		Term:         r.GetCurrentTerm(),
+		LastLogIndex: index,
+		LastLogTerm:  term,
 	}
-	r.enqueueBroadcastRpc(requestVoteMsg)
+
+	r.broadcastRpcImmediate(requestVoteMsg)
 }
 
 func (r *RealRaftFSM) BecomeLeader() {
-	r.CommonState.CurrentTerm++
 	r.role = Leader
 	r.HeartBeatDeadline = r.currentTick + r.heartBeatTimeout - 2
 
