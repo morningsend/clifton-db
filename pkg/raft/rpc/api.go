@@ -1,6 +1,16 @@
 package rpc
 
 type SendType int
+type Role int
+type Status int
+type ID int
+
+const (
+	Follower Role = iota
+	NoneVoteFollower
+	Candidate
+	Leader
+)
 
 type Message interface {
 	message()

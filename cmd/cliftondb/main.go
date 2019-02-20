@@ -116,7 +116,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	kvServer := kvserver.KVServer{}
+	kvServer := kvserver.NewServer()
 	log.Println("Starting grpc server on port:", config.Nodes.Port)
 	grpcServer := grpc.NewServer()
 	kvServer.Register(grpcServer)

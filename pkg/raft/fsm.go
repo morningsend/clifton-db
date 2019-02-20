@@ -1,8 +1,10 @@
 package raft
 
 import (
+	"context"
 	"github.com/zl14917/MastersProject/pkg/raft/rpc"
 	"log"
+	"os"
 )
 
 type Role int
@@ -37,6 +39,12 @@ type CandidateState struct {
 	VotesReceived    map[ID]bool
 }
 
+func (c *CandidateState) ResetVotes() {
+	for k, _ := range c.VotesReceived {
+		c.VotesReceived[k] = false
+	}
+}
+
 type LeaderState struct {
 }
 
@@ -53,7 +61,7 @@ type RaftFSM interface {
 	CommitIndex() int
 	LastAppliedIndex() int
 	VotedFor() ID
-	Logs() []interface{}
+	Log() RaftLog
 }
 
 type RealRaftFSM struct {
@@ -68,8 +76,9 @@ type RealRaftFSM struct {
 	electionTimeout  int
 	heartBeatTimeout int
 	comms            Comms
-	logger           log.Logger
+	logger           *log.Logger
 	peers            []ID
+	log              RaftLog
 }
 
 func NewRaftFSM(id int, peers []ID, electionTimeout int, heartBeatTimeout int) RaftFSM {
@@ -80,6 +89,8 @@ func NewRaftFSM(id int, peers []ID, electionTimeout int, heartBeatTimeout int) R
 		electionTimeout:  electionTimeout,
 		heartBeatTimeout: heartBeatTimeout,
 		peers:            peers,
+		log:              NewInMemoryLog(),
+		logger:           log.New(os.Stdout, "[raft]", log.LstdFlags),
 	}
 	fsm.BecomeFollower()
 
@@ -112,8 +123,8 @@ func (r *RealRaftFSM) LastAppliedIndex() int {
 	return r.CommonState.LastAppliedIndex
 }
 
-func (r *RealRaftFSM) Logs() []interface{} {
-	return nil
+func (r *RealRaftFSM) Log() RaftLog {
+	return r.log
 }
 
 func (r *RealRaftFSM) tick() (int) {
@@ -165,44 +176,39 @@ func (r *RealRaftFSM) BecomeCandidate() {
 	r.VotesReceived = make(map[ID]bool, len(r.peers))
 
 	requestVoteMsg := &rpc.RequestVote{
-		CandidateId: int(r.id), // TODO: refactor ID type to its own package,
-		Term: r.CurrentTerm(),
+		CandidateId:  int(r.id), // TODO: refactor ID type to its own package,
+		Term:         r.CurrentTerm(),
 		LastLogIndex: 0,
-		LastLogTerm: 0,
+		LastLogTerm:  0,
 	}
 	r.enqueueBroadcastRpc(requestVoteMsg)
 }
 
 func (r *RealRaftFSM) BecomeLeader() {
+	r.CommonState.CurrentTerm++
+	r.role = Leader
+	r.HeartBeatDeadline = r.currentTick + r.heartBeatTimeout - 2
 
+	// send initial heart beat to all other nodes.
+	msg := rpc.AppendEntriesReq{
+		Term:              r.CommonState.CurrentTerm,
+		LeaderId:          int(r.id),
+		LeaderCommitIndex: r.CommonState.CommitIndex,
+		PrevLogIndex:      r.CommonState.LastAppliedIndex,
+		Entries:           nil,
+	}
+	r.broadcastRpcImmediate(&msg)
 }
 
 func (r *RealRaftFSM) ReceiveRpc(msg rpc.Message) {
 	switch x := msg.(type) {
 	case *rpc.AppendEntriesReq:
-		if r.role != Follower {
-			r.unhandledRpc(r.role, x)
-			return
-		}
 		r.ReceiveAppendEntriesRpc(x)
 	case *rpc.AppendEntriesReply:
-		if r.role != Leader {
-			r.unhandledRpc(r.role, x)
-			return
-		}
 		r.ReceiveAppendEntriesReply(x)
 	case *rpc.RequestVote:
-		if r.role != Follower {
-			r.unhandledRpc(r.role, x)
-			return
-		}
 		r.ReceiveVoteRequestRpc(x)
 	case *rpc.VotedFor:
-		if r.role != Candidate {
-			r.unhandledRpc(r.role, x)
-			return
-		}
-
 		r.ReceiveVotedFor(x)
 		return
 	default:
@@ -218,14 +224,41 @@ func (r *RealRaftFSM) ReceiveVoteRequestRpc(msg *rpc.RequestVote) {
 
 }
 
-func (r *RealRaftFSM) ReceiveAppendEntriesRpc(msg *rpc.AppendEntriesReq) {
+func (r *RealRaftFSM) ReceiveHeartBeat(msg *rpc.HeartBeat) {
 
+}
+
+func (r *RealRaftFSM) ReceiveAppendEntriesRpc(msg *rpc.AppendEntriesReq) {
+	senderId := msg.LeaderId
+	if msg.Term > r.CommonState.CurrentTerm {
+		r.CommonState.CurrentTerm = msg.Term
+		r.BecomeFollower()
+	}
+	reply := rpc.AppendEntriesReply{
+		Term:    r.CommonState.CurrentTerm,
+		Success: true,
+	}
+	r.sendRpcImmediate(ID(senderId), &reply)
+	for _, e := range msg.Entries {
+		err := r.log.Append(Entry{
+			Index: msg.PrevLogIndex,
+			Term:  msg.Term,
+			Data:  e,
+		})
+
+		if err != nil {
+			r.logger.Fatalln("cannot append log:", err)
+		}
+	}
 }
 func (r *RealRaftFSM) ReceiveVotedFor(msg *rpc.VotedFor) {
-
+	if r.role != Candidate {
+		r.unhandledRpc(msg)
+		return
+	}
 }
 
-func (r *RealRaftFSM) unhandledRpc(role Role, msg rpc.Message) {
+func (r *RealRaftFSM) unhandledRpc(msg rpc.Message) {
 
 }
 
@@ -237,7 +270,17 @@ func (r *RealRaftFSM) candidateStep() {
 }
 
 func (r *RealRaftFSM) leaderStep() {
-
+	if r.HeartBeatDeadline <= r.currentTick {
+		r.HeartBeatDeadline = r.currentTick + r.heartBeatTimeout - 2
+	}
+	msg := &rpc.AppendEntriesReq{
+		Term:              r.CommonState.CurrentTerm,
+		LeaderId:          int(r.id),
+		LeaderCommitIndex: r.CommonState.CommitIndex,
+		PrevLogIndex:      r.CommonState.LastAppliedIndex,
+		Entries:           nil,
+	}
+	r.broadcastRpcImmediate(msg)
 }
 
 func (r *RealRaftFSM) followerStep() {
@@ -246,17 +289,17 @@ func (r *RealRaftFSM) followerStep() {
 }
 
 func (r *RealRaftFSM) enqueueBroadcastRpc(msg rpc.Message) {
-
+	go r.comms.BroadcastRpc(context.Background(), msg)
 }
 
 func (r *RealRaftFSM) broadcastRpcImmediate(msg rpc.Message) {
-
+	go r.comms.BroadcastRpc(context.Background(), msg)
 }
 
-func (r* RealRaftFSM) sendRpcImmediate(msg rpc.Message) {
-
+func (r *RealRaftFSM) sendRpcImmediate(receiver ID, msg rpc.Message) {
+	go r.comms.Rpc(context.Background(), receiver, msg)
 }
 
 func (r *RealRaftFSM) enqueueRpc(receiver ID, msg rpc.Message) {
-
+	go r.comms.Rpc(context.Background(), receiver, msg)
 }

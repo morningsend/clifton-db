@@ -22,5 +22,4 @@ func main() {
 	if err != nil {
 		log.Println("failed to put", err)
 	}
-
 }
