@@ -38,6 +38,7 @@ type RaftFSM interface {
 	GetComms() Comms
 	Tick() int
 	ReceiveMsg(msg rpc.Message)
+	ReplicateDataToLog(data interface{})
 }
 
 type CommonState struct {
@@ -477,4 +478,32 @@ func (r *RealRaftFSM) sendRpcImmediate(receiver ID, msg rpc.Message) {
 
 func (r *RealRaftFSM) enqueueRpc(receiver ID, msg rpc.Message) {
 	go r.comms.Rpc(context.Background(), receiver, msg)
+}
+
+func (r *RealRaftFSM) ReplicateToLog(data interface{}) (error) {
+	prevLogTerm, prevLogIndex := r.log.GetLastLogTermIndex()
+
+	entry := Entry{
+		Index: -1,
+		Term:  r.CurrentTerm,
+		Data:  data,
+	}
+	err := r.log.Append(entry)
+	if err != nil {
+		return err
+	}
+
+	msg := rpc.AppendEntriesReq{
+		LeaderId:          int(r.id),
+		LeaderCommitIndex: r.CommitIndex(),
+
+		Term:         r.CurrentTerm,
+		PrevLogIndex: prevLogIndex,
+		PrevLogTerm:  prevLogTerm,
+		Entries:      []interface{}{data},
+	}
+
+	r.broadcastRpcImmediate(&msg)
+
+	return err
 }
