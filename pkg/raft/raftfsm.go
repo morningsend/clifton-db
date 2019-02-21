@@ -38,7 +38,7 @@ type RaftFSM interface {
 	GetComms() Comms
 	Tick() int
 	ReceiveMsg(msg rpc.Message)
-	ReplicateDataToLog(data interface{})
+	ReplicateToLog(data interface{}) error
 }
 
 type CommonState struct {
@@ -195,7 +195,7 @@ func (r *RealRaftFSM) GetCurrentTerm() int {
 }
 
 func (r *RealRaftFSM) VotedFor() ID {
-	return r.id
+	return r.CommonState.VotedFor
 }
 
 func (r *RealRaftFSM) CommitIndex() int {
@@ -335,26 +335,15 @@ func (r *RealRaftFSM) ReceiveVoteRequestRpc(msg *rpc.RequestVote) {
 		VoteGranted: false,
 	}
 
-	r.logger.Println("sending vote for reply")
-
 	if msg.Term < r.CurrentTerm {
 		voteReply.VoteGranted = false
-		r.sendRpcImmediate(ID(msg.CandidateId), voteReply)
-		return
-	}
-
-	if r.VotedFor() < 0 {
+	} else if r.VotedFor() < 0 {
 		voteReply.VoteGranted = true
-		r.sendRpcImmediate(ID(msg.CandidateId), voteReply)
-		return
-	}
-
-	if r.VotedFor() == ID(msg.CandidateId) {
+		r.CommonState.VotedFor = ID(msg.CandidateId)
+	} else if r.VotedFor() == ID(msg.CandidateId) {
 		voteReply.VoteGranted = msg.LastLogIndex >= logIndex
-		r.sendRpcImmediate(ID(msg.CandidateId), voteReply)
-		return
 	}
-
+	r.logger.Println("sending vote for reply", "vote granted", voteReply.VoteGranted)
 	r.sendRpcImmediate(ID(msg.CandidateId), voteReply)
 }
 
@@ -481,6 +470,9 @@ func (r *RealRaftFSM) enqueueRpc(receiver ID, msg rpc.Message) {
 }
 
 func (r *RealRaftFSM) ReplicateToLog(data interface{}) (error) {
+	if r.role != Leader {
+		return fmt.Errorf("failed to replicate log, must be a leader")
+	}
 	prevLogTerm, prevLogIndex := r.log.GetLastLogTermIndex()
 
 	entry := Entry{

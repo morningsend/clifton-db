@@ -1,10 +1,10 @@
 package raft
 
 type RaftNode struct {
-	Id    int
-	FSM   RaftFSM
-	Comms Comms
-	Driver Driver
+	Id     int
+	FSM    RaftFSM
+	Comms  Comms
+	Driver RaftDriver
 }
 
 

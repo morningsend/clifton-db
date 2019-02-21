@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Driver interface {
+type RaftDriver interface {
 	Init(fsm RaftFSM, tickInterval time.Duration)
 	Shutdown() <-chan struct{}
 	Run(ctx context.Context)
@@ -56,7 +56,7 @@ func (d *testDriver) Run(ctx context.Context) {
 	}
 }
 
-func NewTestDriver() Driver {
+func NewTestDriver() RaftDriver {
 	driver := testDriver{
 		shutdownFinished: make(chan struct{}),
 	}

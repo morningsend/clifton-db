@@ -50,6 +50,12 @@ func NewChannelComms(selfId ID, conns map[ID]chan rpc.Message) *ChannelComms {
 
 func (comms *ChannelComms) Start() {
 	fanOut := func(in <-chan rpc.Message, receivers map[ID]chan rpc.Message) {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered r", r)
+			}
+		}()
+
 		for {
 			//fmt.Println(comms.SelfId, "fanout waiting for msg")
 			msg := <-in
@@ -61,6 +67,7 @@ func (comms *ChannelComms) Start() {
 				}
 			}
 		}
+
 	}
 
 	pipeOut := func(c <-chan rpc.Message, out chan rpc.Message) {
@@ -81,7 +88,6 @@ func (comms *ChannelComms) Start() {
 }
 
 func (comms *ChannelComms) BroadcastRpc(ctx context.Context, msg rpc.Message) {
-	fmt.Println(msg)
 	go func() {
 		for {
 			select {
@@ -95,7 +101,12 @@ func (comms *ChannelComms) BroadcastRpc(ctx context.Context, msg rpc.Message) {
 }
 
 func (comms *ChannelComms) Rpc(ctx context.Context, id ID, msg rpc.Message) {
+	if id == comms.SelfId {
+		return
+	}
+
 	conn, ok := comms.rpcChannels[id]
+
 	if !ok {
 		panic(fmt.Errorf("failed to send rpc: connection with id %d does not exist", id))
 	}
