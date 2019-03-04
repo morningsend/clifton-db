@@ -34,8 +34,8 @@ type BlockStorage interface {
 	io.Writer
 	io.Closer
 
-	NumBlocks() uint
-	BlockSize() uint
+	NumBlocks() int
+	BlockSize() int
 
 	Sync() error
 	Flush() error
