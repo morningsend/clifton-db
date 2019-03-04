@@ -1,45 +1,13 @@
 package wal
 
 import (
-	"github.com/prometheus/common/log"
 	"gopkg.in/yaml.v2"
+	"log"
 	"os"
 	"path"
+	"path/filepath"
 )
-
-type WALFlag int32
-
 const WALLockFileName = "wal_lock_file"
-const WALHeaderMagic = 0x19191919
-const (
-	WAL_Ongoing WALFlag = 1 << iota
-	WAL_Archived
-	WAL_Compressed
-)
-
-type WALSegHeader struct {
-	Magic     int32
-	SegId     int32
-	PrevSegId int32
-	Flags     int32
-
-	StartRecordIndex uint64
-}
-
-type WALSeg struct {
-	WALSegHeader
-
-	File     os.File
-	FileSize int64
-}
-
-func (s *WALSeg) Sync() error {
-	return nil
-}
-
-func (s *WALSeg) Append(record *WALRecord) error {
-	return nil
-}
 
 type WALCloser interface {
 	Close() error
@@ -128,6 +96,7 @@ func (w *WAL) TryRestoreFromLockFile() error {
 	if err != nil {
 		return err
 	}
+
 	defer file.Close()
 
 	lockFile := walLockFileContent{}
@@ -138,10 +107,6 @@ func (w *WAL) TryRestoreFromLockFile() error {
 	}
 
 	w.CommitIndex = lockFile.CommitIndex
-	return nil
-}
-
-func (w *WAL) LoadSegments() error {
 	return nil
 }
 
@@ -160,7 +125,7 @@ func (w *WAL) WriteLockFile() error {
 	defer func() {
 		err := file.Close()
 		if err != nil {
-			log.Fatalf("error writing lock file at path", lockFilePath)
+			log.Fatal("error writing lock file at path", lockFilePath)
 		}
 	}()
 
@@ -209,9 +174,32 @@ func (wal *WAL) NewReader() WALReader {
 }
 
 func (wal *WAL) NewSegment() error {
+	newSeg := WALSeg{
+		WALSegHeader: WALSegHeader{
+			SegId:     0,
+			PrevSegId: 0,
+
+			Magic:            WALSegHeaderMagic,
+			Flags:            WALSegOngoingFlag,
+			StartRecordIndex: wal.Index,
+		},
+		file: nil,
+	}
+
 	if wal.Current == nil {
 
+		wal.Segments = append(wal.Segments, newSeg)
 	}
+
+	return nil
+}
+
+func (wal *WAL) LoadSegments() error {
+	handleFile := func(path string, in os.FileInfo, err error) error {
+		return nil
+	}
+	err := filepath.Walk(wal.DirPath, handleFile)
+	return err
 }
 
 func (wal *WAL) Append(record *WALRecord) error {
@@ -219,6 +207,7 @@ func (wal *WAL) Append(record *WALRecord) error {
 	if wal.Current == nil {
 		seg := WALSeg{}
 		wal.Segments = append(wal.Segments, seg)
+		wal.Current = &seg
 	}
 
 	err := wal.Current.Append(record)

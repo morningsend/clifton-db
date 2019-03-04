@@ -2,6 +2,7 @@ package wal
 
 import (
 	"bytes"
+	"unsafe"
 )
 
 type WALEventType uint32
@@ -11,17 +12,21 @@ const (
 	DeleteKey
 )
 
-// Redo logging
-type WALEvent struct {
+type WALEventHeader struct {
 	EventType WALEventType
 	KeyLen    uint32
 	ValueLen  uint32
+}
+
+// Redo logging
+type WALEvent struct {
+	WALEventHeader
 	KeyData   []byte
 	ValueData []byte
 }
 
 type WALRecordHeader struct {
-	Index uint32
+	Index uint64
 	CRC   uint32
 	Len   uint32
 }
@@ -35,6 +40,24 @@ func (event *WALEvent) Marshall(buffer *bytes.Buffer) {
 	//intBytes := make([]byte, 0, 4)
 }
 
-func (r *WALRecord) Marshall(buffer *bytes.Buffer) {
+func (header *WALRecordHeader) Marshall(buffer *bytes.Buffer) {
 
+}
+
+func (r *WALRecord) Marshall(buffer *bytes.Buffer) {
+	r.WALRecordHeader.Marshall(buffer)
+}
+
+func (r *WALRecord) SetPayload(eventType WALEventType, key []byte, value []byte) {
+	r.EventType = eventType
+	r.KeyLen = uint32(len(key))
+	r.KeyData = key
+	r.ValueData = value
+	r.ValueLen = uint32(len(value))
+	r.Len = r.KeyLen + r.ValueLen + 2*uint32(unsafe.Sizeof(r.ValueLen))
+}
+
+func ComputeWALRecordCRC(data []byte, len int) int32 {
+
+	return 0
 }
