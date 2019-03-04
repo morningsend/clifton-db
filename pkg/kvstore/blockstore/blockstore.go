@@ -1,48 +1,42 @@
 package blockstore
 
+import (
+	"bytes"
+	"errors"
+	"io"
+)
+
+const (
+	BaseBlockSize uint = 4 * 1024
+)
+
+var SizeExceeded = errors.New("size exceeded")
+
+// Random access to blocks in a file.
+// IO is aligned.
+type BlockReader interface {
+	ReadBlock(index uint, buffer *bytes.Buffer) (n int, err error)
+}
+
+// Random write to block in a file.
+// IO is aligned.
+type BlockWriter interface {
+	WriteBlock(index uint, buffer *bytes.Buffer) (n int, err error)
+}
+
 type BlockStorage interface {
-	ReadBytes(pointer BlockPointer) ([]byte, error)
-	WriteBytes(buffer []byte, nbytes int) (BlockPointer, error)
-}
+	blockStorage()
 
-type BlockPointer struct {
-	BlockNumber int32
-	Offset      int32
-	NumBytes    int32
-}
+	BlockReader
+	BlockWriter
 
-type Block struct {
-	BlockHeader
-	BlockBody
-	Next *Block
-}
+	io.Reader
+	io.Writer
+	io.Closer
 
-type BlockHeader struct {
-	Length     int32
-	BlockSize  int32
-	BlockCRC   int64
-	Key        []byte
-	HeaderData []byte
-}
+	NumBlocks() uint
+	BlockSize() uint
 
-type BlockBody struct {
-	Data []byte
-}
-
-type InMemoryBlockStorage struct {
-	BlockSize int
-}
-
-func (store *InMemoryBlockStorage) ReadBytes(pointer BlockPointer) ([]byte, error) {
-	return []byte("hello"), nil
-}
-
-func (store *InMemoryBlockStorage) WriteBytes(buffer []byte, nbytes int) (BlockPointer, error) {
-	return BlockPointer{}, nil
-}
-
-func NewInMemoryStore(blockSize int) BlockStorage {
-	return &InMemoryBlockStorage{
-		BlockSize: blockSize,
-	}
+	Sync() error
+	Flush() error
 }

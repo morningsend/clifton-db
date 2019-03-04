@@ -1,16 +1,14 @@
 package sstable
 
 import (
-	"github.com/zl14917/MastersProject/pkg/kvstore/types"
+	"os"
+	"path"
 )
 
 type EntryFlags uint32
-type IndexFileFlags uint32
 type DataFileFlags uint32
 
 const (
-	IndexFileMagic      uint32 = 0x32323232
-	DataFileMagic       uint32 = 0x33333333
 	HeaderUninitialized uint32 = 0x77777777
 	BaseBlockSize       uint32 = 1024 * 4
 )
@@ -33,58 +31,76 @@ type SSTableOps interface {
 	NewWriter() SSTableWriter
 }
 
-type SSTableIndexFileHeader struct {
-	Magic      uint32
-	Flags      IndexFileFlags
-	KeyCount   uint32
-	BlockSize  uint32
-	BlockCount uint32
-	MaxKeySize uint32
-}
+const indexFileName = "-index"
+const dataFileName = "-data"
 
-type SSTableIndexFile struct {
-	SSTableIndexFileHeader
-	IndexBlocks []SSTableIndexBlock
-}
-
-type SSTableIndexBlock struct {
-	KeyCount uint32
-}
-
-type SSTableIndexEntry struct {
-	Flags          uint32
-	KeyLen         uint32
-	DataFileOffSet uint64
-	SmallKey       [32]byte
-	LargeKey       []byte
-}
-
-type SSTableDataFileHeader struct {
-	Magic      uint32
-	Flags      DataFileFlags
-	BlockSize  uint32
-	BlockCount uint32
-}
-
-type SSTableDataRecord struct {
-	TimeStamp uint64
-	Value     types.ValueType
-}
-
-type SSTableDataFile struct {
-	Header       SSTableDataFileHeader
-	RecordsCount uint32
-}
-
-func NewSSTable() SSTable {
-	return SSTable{
+func NewSSTable(dirPath string, prefix string, maxKeySize uint32, maxValueSize uint32, keyBlockSize uint32) (*SSTable, error) {
+	var err error
+	sstable := &SSTable{
+		IndexFilePath: path.Join(dirPath, prefix+indexFileName),
+		DataFilePath:  path.Join(dirPath, prefix+dataFileName),
+		MaxKeySize:    maxKeySize,
+		MaxValueSize:  maxValueSize,
 	}
+
+	err = sstable.CreateIndexFile()
+	if err != nil {
+		return nil, err
+	}
+
+	err = sstable.CreateDataFile()
+
+	if err != nil {
+		_ = os.Remove(sstable.IndexFilePath)
+		return nil, err
+	}
+
+	return sstable, nil
+}
+
+func (s *SSTable) CreateIndexFile() error {
+	return s.createFile(s.IndexFilePath)
+}
+
+func (s *SSTable) createFile(path string) error {
+	file, err := os.OpenFile(
+		s.IndexFilePath,
+		os.O_CREATE|os.O_EXCL|os.O_RDWR,
+		0644,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	err = file.Close()
+	return err
+}
+
+func (s *SSTable) CreateDataFile() error {
+	return s.createFile(s.DataFilePath)
+}
+
+func LoadSSTableFrom(dirPath string, prefix string) *SSTable {
+	sstable := &SSTable{
+
+	}
+
+	return sstable
 }
 
 func (s *SSTable) NewReader() SSTableReader {
 	return nil
 }
 
+func (s *SSTable) NewScanner() SSTableScanner {
+	return nil
+}
+
 func (s *SSTable) NewWriter() SSTableWriter {
+	return nil
+}
+
+func (s *SSTable) Close() error {
 	return nil
 }

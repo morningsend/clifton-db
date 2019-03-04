@@ -2,6 +2,7 @@ package wal
 
 import (
 	"bytes"
+	"io"
 	"unsafe"
 )
 
@@ -36,8 +37,9 @@ type WALRecord struct {
 	WALEvent
 }
 
-func (event *WALEvent) Marshall(buffer *bytes.Buffer) {
+func (event *WALEvent) Marshall(writer io.Writer) {
 	//intBytes := make([]byte, 0, 4)
+
 }
 
 func (header *WALRecordHeader) Marshall(buffer *bytes.Buffer) {

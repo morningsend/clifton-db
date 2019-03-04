@@ -97,7 +97,7 @@ func (t *rbTree) Size() int {
 }
 
 func (tree *rbTree) newRBTreeNode(key string, data []byte, color rbColor) *rbTreeNode {
-	tree.hasher.WriteString(key)
+	tree.hasher.UpdateString(key)
 	keyHash := tree.hasher.GetHashInt32()
 
 	return &rbTreeNode{
