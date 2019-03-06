@@ -33,8 +33,8 @@ func NewInMemBlockStorage(blockSize int) BlockStorage {
 	return &InMemBlockStorage{
 		blockSize:      blockSize,
 		blockLen:       -1,
-		blocks:         make([]inMemBlock, 0, 1),
-		seqWriteBlock:  blockSize,
+		blocks:         make([]inMemBlock, 0, 0),
+		seqWriteBlock:  -1,
 		seqWriteOffset: blockSize,
 		seqReadBlock:   0,
 		seqReadOffset:  0,
@@ -59,7 +59,7 @@ func (b *InMemBlockStorage) Write(p []byte) (n int, err error) {
 		return 0, nil
 	}
 	if len(p) > b.blockSize {
-		return 0, SizeExceeded
+		return 0, SizeExceedBlockSize
 	}
 
 	remaining := b.blockSize - b.seqWriteOffset
@@ -70,8 +70,8 @@ func (b *InMemBlockStorage) Write(p []byte) (n int, err error) {
 		b.seqWriteBlock++
 	}
 
-	if b.blockLen < b.seqWriteBlock {
-		b.blockLen = b.seqWriteBlock
+	if b.blockLen < b.seqWriteBlock+1 {
+		b.blockLen = b.seqWriteBlock + 1
 		b.growBlocks()
 	}
 
@@ -88,18 +88,22 @@ func (b *InMemBlockStorage) Read(p []byte) (n int, err error) {
 
 	remaining := b.blockSize - b.seqReadOffset
 
-	if len(p) < 1 {
+	readSize := len(p)
+	if readSize < 1 {
 		return 0, nil
 	}
 
-	readSize := len(p)
-
-	if readSize < remaining {
-		b.seqReadOffset = 0
-		b.seqReadBlock++
+	if readSize > b.blockSize {
+		return 0, SizeExceedBlockSize
 	}
 
-	if b.blockLen < b.seqReadBlock {
+	if readSize > remaining {
+		b.seqReadOffset = 0
+		b.seqReadBlock++
+		remaining = b.blockSize
+	}
+
+	if b.blockLen <= b.seqReadBlock {
 		return 0, io.EOF
 	}
 
@@ -150,6 +154,16 @@ func (b *InMemBlockStorage) WriteBlock(index uint, buffer *bytes.Buffer) (n int,
 	nCopied := copy(block.data, buffer.Bytes()[0:minSize])
 
 	return nCopied, nil
+}
+
+func (b *InMemBlockStorage) Allocate(nblocks int) (n int, err error) {
+	oldSize := b.blockLen
+	if b.blockLen < nblocks {
+		b.blockLen = nblocks
+		b.growBlocks()
+	}
+
+	return b.blockLen - oldSize, err
 }
 
 func (b *InMemBlockStorage) BlockSize() int {
