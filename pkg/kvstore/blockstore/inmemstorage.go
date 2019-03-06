@@ -141,7 +141,7 @@ func (b *InMemBlockStorage) ReadBlock(index uint, buffer *bytes.Buffer) (n int, 
 
 // write data in buffer into a block.
 func (b *InMemBlockStorage) WriteBlock(index uint, buffer *bytes.Buffer) (n int, err error) {
-	if b.blockLen > int(index) {
+	if b.blockLen <= int(index) {
 		return 0, io.EOF
 	}
 
@@ -157,7 +157,15 @@ func (b *InMemBlockStorage) WriteBlock(index uint, buffer *bytes.Buffer) (n int,
 }
 
 func (b *InMemBlockStorage) Allocate(nblocks int) (n int, err error) {
-	oldSize := b.blockLen
+	if nblocks <= b.blockLen {
+		return 0, nil
+	}
+
+	oldSize := 0
+	if b.blockLen > oldSize {
+		oldSize = b.blockLen
+	}
+
 	if b.blockLen < nblocks {
 		b.blockLen = nblocks
 		b.growBlocks()

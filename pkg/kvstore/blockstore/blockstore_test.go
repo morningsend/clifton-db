@@ -104,8 +104,10 @@ func randomWriteTest(s BlockStorage, t *testing.T) {
 	var BlockSize = s.BlockSize()
 
 	nblock, err := s.Allocate(Blocks)
+
 	if nblock != Blocks {
 		t.Errorf("should allocate block %d but got %d", Blocks, nblock)
+		return
 	}
 
 	if err != nil {
@@ -117,7 +119,7 @@ func randomWriteTest(s BlockStorage, t *testing.T) {
 	data2 := make([]byte, BlockSize, BlockSize)
 
 	fillArray(data1, Value1)
-	fillArray(data2, Value1)
+	fillArray(data2, Value2)
 	buf1 := bytes.NewBuffer(data1)
 	buf2 := bytes.NewBuffer(data2)
 	n, err := s.WriteBlock(0, buf1)
@@ -127,5 +129,23 @@ func randomWriteTest(s BlockStorage, t *testing.T) {
 		return
 	}
 
-	n, err := s.WriteBlock(1, buf2)
+	if n != buf1.Len() {
+		t.Errorf("didn't write full block, written %d bytes, but block size %d", buf1.Len(), BlockSize)
+		return
+	}
+
+	_, _ = s.WriteBlock(1, buf2)
+	_, err = s.WriteBlock(100, buf1)
+
+	if err == nil {
+		t.Error("writing beyond block size should fail but didnt")
+		return
+	}
+
+	err = s.Sync()
+	if err != nil {
+		t.Error("error syncing to persistent storage", err)
+		return
+	}
+	//n, err := s.WriteBlock(1, buf2)
 }

@@ -6,10 +6,6 @@ import (
 	"io"
 )
 
-const (
-	BaseBlockSize uint = 4 * 1024
-)
-
 var SizeExceedBlockSize = errors.New("size exceeded")
 
 // Random access to blocks in a file.
@@ -29,8 +25,9 @@ type BlockWriter interface {
 }
 
 type BlockAllocator interface {
-	Allocate(nblocks int) (n int, err error)
+	Allocate(nblocks int) (nAllocated int, err error)
 }
+
 type BlockStorage interface {
 	blockStorage()
 
