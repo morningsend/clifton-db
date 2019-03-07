@@ -28,6 +28,10 @@ type BlockAllocator interface {
 	Allocate(nblocks int) (nAllocated int, err error)
 }
 
+type Position struct {
+	Block  int
+	Offset int
+}
 type BlockStorage interface {
 	blockStorage()
 
@@ -41,6 +45,9 @@ type BlockStorage interface {
 
 	NumBlocks() int
 	BlockSize() int
+
+	WritePosition() Position
+	ReadPosition() Position
 
 	Sync() error
 	Flush() error

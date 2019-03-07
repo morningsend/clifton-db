@@ -1,7 +1,10 @@
 package blockstore
 
-import "testing"
-
+import (
+	"bytes"
+	"fmt"
+	"testing"
+)
 
 func TestInMemBlockStorage_SequentialWrites(t *testing.T) {
 	const BlockSize = 128
@@ -29,4 +32,24 @@ func TestInMemBlockStorage_RandomWrites(t *testing.T) {
 	s := NewInMemBlockStorage(BlockSize)
 	randomWriteTest(s, t)
 	_ = s.Close()
+}
+
+func TestBytesBufferSizeGrow(t *testing.T) {
+
+	buffer := bytes.NewBuffer(nil)
+	buffer.Grow(10)
+	buffer.Write([]byte{4, 5, 6, 7, 8, 9, 0, 1, 2, 3})
+	fmt.Println(buffer.Bytes()[0:10])
+	buffer.Reset()
+	fmt.Println(buffer.Bytes()[0:10])
+
+	fmt.Println(buffer.Bytes()[0:10])
+	data := buffer.Bytes()[0:10]
+
+	fmt.Println(data)
+	data[3] = 99
+	fmt.Println(data)
+	fmt.Println(buffer.Bytes()[0:10])
+
+	buffer.Reset()
 }

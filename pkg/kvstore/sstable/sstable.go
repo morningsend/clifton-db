@@ -22,8 +22,8 @@ type SSTable struct {
 	IndexFilePath string
 	DataFilePath  string
 
-	MaxKeySize   uint32
-	MaxValueSize uint32
+	MaxKeySize   int
+	MaxValueSize int
 }
 
 type SSTableOps interface {
@@ -34,7 +34,7 @@ type SSTableOps interface {
 const indexFileName = "-index"
 const dataFileName = "-data"
 
-func NewSSTable(dirPath string, prefix string, maxKeySize uint32, maxValueSize uint32, keyBlockSize uint32) (*SSTable, error) {
+func NewSSTable(dirPath string, prefix string, maxKeySize int, maxValueSize int, keyBlockSize int) (*SSTable, error) {
 	var err error
 	sstable := &SSTable{
 		IndexFilePath: path.Join(dirPath, prefix+indexFileName),

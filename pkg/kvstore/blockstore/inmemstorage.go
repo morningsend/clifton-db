@@ -32,10 +32,10 @@ type InMemBlockStorage struct {
 func NewInMemBlockStorage(blockSize int) BlockStorage {
 	return &InMemBlockStorage{
 		blockSize:      blockSize,
-		blockLen:       -1,
+		blockLen:       0,
 		blocks:         make([]inMemBlock, 0, 0),
-		seqWriteBlock:  -1,
-		seqWriteOffset: blockSize,
+		seqWriteBlock:  0,
+		seqWriteOffset: 0,
 		seqReadBlock:   0,
 		seqReadOffset:  0,
 	}
@@ -58,6 +58,7 @@ func (b *InMemBlockStorage) Write(p []byte) (n int, err error) {
 	if len(p) < 1 {
 		return 0, nil
 	}
+
 	if len(p) > b.blockSize {
 		return 0, SizeExceedBlockSize
 	}
@@ -180,4 +181,18 @@ func (b *InMemBlockStorage) BlockSize() int {
 
 func (b *InMemBlockStorage) NumBlocks() int {
 	return b.blockLen
+}
+
+func (b *InMemBlockStorage) ReadPosition() Position {
+	return Position{
+		Block:  b.seqReadBlock,
+		Offset: b.seqReadOffset,
+	}
+}
+
+func (b *InMemBlockStorage) WritePosition() Position {
+	return Position{
+		Block:  b.seqWriteBlock,
+		Offset: b.seqWriteOffset,
+	}
 }
