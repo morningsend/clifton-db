@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 )
+
 const WALLockFileName = "wal_lock_file"
 
 type WALCloser interface {

@@ -1,4 +1,4 @@
-package memstore
+package kvstore
 
 type MemTableOps interface {
 	Put(key []byte, value []byte)
@@ -9,9 +9,9 @@ type MemTableOps interface {
 type MemTable interface {
 	KeySizeEstimate() uint32
 	BytesCount()
-	Flush() <-chan struct{}
+	Iterator() SortedKVIterator
 }
 
-type HashMapMemTable struct {
-	bytesCount uint32
+func NewLockFreeMemTable() MemTable {
+	return nil
 }
