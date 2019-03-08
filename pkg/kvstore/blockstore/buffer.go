@@ -7,8 +7,11 @@ func clearBuffer(b *bytes.Buffer, value byte, size int) {
 		size = b.Cap()
 	}
 	regionToClear := b.Bytes()[0:size]
+	clearBytes(regionToClear, value, size)
+}
 
-	for i, _ := range regionToClear {
-		b.Bytes()[i] = value
+func clearBytes(bArray []byte, value byte, size int) {
+	for i, _ := range bArray {
+		bArray[i] = value
 	}
 }

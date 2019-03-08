@@ -52,4 +52,6 @@ func TestBytesBufferSizeGrow(t *testing.T) {
 	fmt.Println(buffer.Bytes()[0:10])
 
 	buffer.Reset()
+	buffer.Write(buffer.Bytes()[0:10])
+	fmt.Println(buffer.Len())
 }

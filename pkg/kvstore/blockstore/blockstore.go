@@ -8,6 +8,8 @@ import (
 
 var SizeExceedBlockSize = errors.New("size exceeded")
 
+const BaseBlockSize = 4 * 1024
+
 // Random access to blocks in a file.
 // IO is aligned.
 // Returns number of bytes read or error

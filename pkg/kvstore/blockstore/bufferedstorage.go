@@ -10,6 +10,8 @@ const (
 	FsBaseBlockSize uint = 4 * 1024
 )
 
+type blockBuffer []byte
+
 // A class to provide block buffering for io.
 // Data is aligned in blocks
 type BufferedBlockStorage struct {
@@ -26,10 +28,11 @@ type BufferedBlockStorage struct {
 	seqWriteBlock  int
 	seqWriteOffset int
 
-	readBuffer  *bytes.Buffer
+	readBuffer  blockBuffer
 	writeBuffer *bytes.Buffer
 
 	currentReadBufferBlock  int
+	currentReadBufferSize   int
 	currentWriteBufferBlock int
 }
 
@@ -89,13 +92,12 @@ func newBufferedStorageWithOptions(path string, storageOptions ...BufferedBlockS
 
 		blockLen: 0,
 
-		readBuffer:              bytes.NewBuffer(nil),
+		readBuffer:              make(blockBuffer, options.BlockSize, options.BlockSize),
 		writeBuffer:             bytes.NewBuffer(nil),
 		currentReadBufferBlock:  0,
 		currentWriteBufferBlock: 0,
 	}
 
-	storage.readBuffer.Grow(storage.blockSize)
 	storage.writeBuffer.Grow(storage.blockSize)
 
 	return storage
@@ -158,13 +160,12 @@ func OpenBlockFile(path string, storageOptions ...BufferedBlockStorageOption) (B
 }
 
 func (s *BufferedBlockStorage) flushReadBuffer() error {
+	var err error
+	clearBytes(s.readBuffer, 0x0, s.blockSize)
 
-	clearBuffer(s.readBuffer, 0x0, s.blockSize)
-	s.readBuffer.Reset()
-	bufMem := s.readBuffer.Bytes()
-
+	offset := int64(s.blockSize) * int64(s.currentReadBufferBlock)
 	// Read in a loop
-	_, err := s.file.Read(bufMem[0:s.blockSize])
+	s.currentReadBufferSize, err = s.file.ReadAt(s.readBuffer, offset)
 
 	if err != nil {
 		return err
@@ -188,15 +189,30 @@ func (s *BufferedBlockStorage) Read(data []byte) (n int, err error) {
 		s.seqReadOffset = 0
 		s.seqReadBlock++
 		remaining = s.blockSize
+		s.currentReadBufferBlock = s.seqReadBlock
 
-		s.flushReadBuffer()
+		err = s.flushReadBuffer()
+
+		if err == io.EOF && s.currentReadBufferSize == 0 {
+			return 0, err
+		}
+
+		s.currentReadBufferBlock = s.seqReadBlock
 	}
 
 	if s.blockLen <= s.seqReadBlock {
 		return 0, io.EOF
 	}
 
-	return
+	transferSize := bytesToRead
+
+	if s.currentReadBufferSize-s.seqReadOffset < transferSize {
+		transferSize = s.currentReadBufferSize - s.seqReadOffset
+	}
+
+	copy(data, s.readBuffer[s.seqReadOffset:s.seqReadOffset+transferSize])
+
+	return transferSize, nil
 }
 
 func (s *BufferedBlockStorage) Write(data []byte) (n int, err error) {
@@ -254,12 +270,13 @@ func (s *BufferedBlockStorage) Allocate(nblocks int) (nAllocated int, err error)
 	}
 
 	growth := nblocks - s.blockLen
-	size := int64(nblocks) * int64(s.blockLen)
+	size := int64(nblocks) * int64(s.blockSize)
 	err = s.file.Truncate(size)
 
 	if err != nil {
 		return
 	}
+
 	s.blockLen = nblocks
 
 	return growth, nil
@@ -280,10 +297,53 @@ func (s *BufferedBlockStorage) BlockSize() int {
 }
 
 func (s *BufferedBlockStorage) WriteBlock(index uint, buffer *bytes.Buffer) (n int, err error) {
+	bytesToWrite := s.blockSize
+	if bytesToWrite > buffer.Len() {
+		bytesToWrite = buffer.Len()
+	}
+
+	offset := int64(s.blockSize) * int64(index)
+
+	if bytesToWrite > buffer.Len() {
+		bytesToWrite = buffer.Len()
+	}
+	bufMem := buffer.Bytes()[0:bytesToWrite]
+
+	n, err = s.file.WriteAt(bufMem, offset)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if s.autoSync {
+		err = s.Sync()
+	}
+
 	return
 }
 
 func (s *BufferedBlockStorage) ReadBlock(index uint, buffer *bytes.Buffer) (n int, err error) {
+
+	var (
+		offset int64 = int64(s.blockSize) * int64(index)
+	)
+
+	len := buffer.Len()
+	requiredCapacity := len + s.blockSize
+
+	bufMem := buffer.Bytes()[len:requiredCapacity]
+
+	if buffer.Cap() < requiredCapacity {
+		buffer.Grow(requiredCapacity - buffer.Cap())
+	}
+
+	n, err = s.file.ReadAt(bufMem, offset)
+	if err != nil {
+		return 0, err
+	}
+
+	buffer.Write(bufMem[0:n])
+
 	return
 }
 

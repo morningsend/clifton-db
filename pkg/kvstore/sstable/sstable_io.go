@@ -3,7 +3,6 @@ package sstable
 import (
 	"github.com/zl14917/MastersProject/pkg/kvstore/blockstore"
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
-	"os"
 )
 
 // SSTableWriter assumes that the keys are sorted.
@@ -21,26 +20,29 @@ type SSTableScanner interface {
 	FindRecord(key types.KeyType) (value types.ValueType, deleted bool, ok bool)
 }
 
-type sstableBlockIndexWriter struct {
+type sstableBlockIndexFileWriter struct {
 	FilePath string
 	Storage  blockstore.BlockStorage
 }
 
-type (
-	writer *sstableBlockIndexWriter
-)
-
-func NewIndexWriter(storage blockstore.BlockStorage, blockSize int, maxKeySize int) sstableBlockIndexWriter {
-	return sstableBlockIndexWriter{
+func newIndexWriter(storage blockstore.BlockStorage, blockSize int, maxKeySize int) sstableBlockIndexFileWriter {
+	return sstableBlockIndexFileWriter{
 		Storage: storage,
 	}
 }
 
-type sstableDataWriter struct {
-	FilePath string
-	File     *os.File
+type sstableDataFileWriter struct {
+	Storage   blockstore.BlockStorage
+	BlockSize int
 }
 
-func (writer *sstableDataWriter) Write() (index blockstore.BlockOffSet,err error) {
+func (writer *sstableDataFileWriter) Write(value []byte) (index blockstore.Position, err error) {
+	return blockstore.Position{}, nil
+}
 
+func newSStableDataWriter(storage blockstore.BlockStorage, blockSize int) sstableDataFileWriter {
+	return sstableDataFileWriter{
+		Storage:   storage,
+		BlockSize: blockSize,
+	}
 }
