@@ -15,3 +15,7 @@ type MemTable interface {
 func NewLockFreeMemTable() MemTable {
 	return nil
 }
+
+func NewMapMemTable() MemTable {
+
+}

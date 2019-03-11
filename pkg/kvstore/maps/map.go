@@ -11,6 +11,8 @@ type MapIterator interface {
 type Map interface {
 	Get(key Key) (value Value, ok bool)
 	Put(key Key, value Value) (err error)
+	Remove(key Key)(value Value, ok bool)
 	Contains(key Key) (ok bool)
 	Iterator() MapIterator
+	Len() int
 }
