@@ -3,11 +3,18 @@ package concurrent
 import (
 	"github.com/zl14917/MastersProject/pkg/kvstore/maps"
 	"sync"
+	"time"
 )
+
+type mapValue struct {
+	Data      []byte
+	Delete    bool
+	Timestamp uint64
+}
 
 type ThreadsafeMap struct {
 	sync.RWMutex
-	Map map[maps.Key]maps.Value
+	Map map[maps.Key]mapValue
 }
 
 type ThreadsafeMapIterator struct {
@@ -20,29 +27,43 @@ type ThreadsafeMapIterator struct {
 
 func NewThreadsafeMap() maps.Map {
 	return &ThreadsafeMap{
-		Map: make(map[maps.Key]maps.Value),
+		Map: make(map[maps.Key]mapValue),
 	}
 }
 
 func (m *ThreadsafeMap) Get(key maps.Key) (value maps.Value, ok bool) {
 	m.RLock()
 	defer m.RUnlock()
-	value, ok = m.Map[key]
-	return
+	readValue, ok := m.Map[key]
+	if !ok || readValue.Delete {
+		return nil, false
+	}
+	return readValue.Data, true
 }
 
 func (m *ThreadsafeMap) Remove(key maps.Key) (value maps.Value, ok bool) {
 	m.Lock()
 	defer m.Unlock()
-	value, ok = m.Map[key]
-	delete(m.Map, key)
-	return
+	writeValue, ok := m.Map[key]
+	if !ok {
+		return nil, false
+	}
+	value = writeValue.Data
+	writeValue.Data = nil
+	writeValue.Delete = true
+	writeValue.Timestamp = time.Now()
+	m.Map[key] = writeValue
+
+	return value, true
 }
 
 func (m *ThreadsafeMap) Put(key maps.Key, value maps.Value) (err error) {
 	m.Lock()
 	defer m.Unlock()
-	m.Map[key] = value
+	m.Map[key] = mapValue{
+		Data:   value,
+		Delete: false,
+	}
 	return nil
 }
 

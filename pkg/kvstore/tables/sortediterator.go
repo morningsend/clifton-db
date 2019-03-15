@@ -1,4 +1,4 @@
-package kvstore
+package tables
 
 import "github.com/zl14917/MastersProject/pkg/kvstore/types"
 

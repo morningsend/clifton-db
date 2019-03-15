@@ -48,16 +48,17 @@ type KVServer struct {
 	MetadatPath  string
 	DataPath     string
 
-	Logger *logger.FileLogger
+	Logger logger.Logger
 }
 
 func NewKVServer(conf Config) (*KVServer, error) {
+	var serverLogger logger.Logger
 	dbPath := conf.DbPath
 	logsPath := path.Join(dbPath, logPath, logFileName)
 
-	fileLogger, err := logger.NewFileLogger(path.Join(dbPath, logPath), logPath, log.LstdFlags)
+	serverLogger, err := logger.NewFileLogger(path.Join(dbPath, logPath), logPrefix, log.LstdFlags)
 	if err != nil {
-		return nil, err
+		serverLogger = log.New(os.Stdout, logPrefix, log.LstdFlags)
 	}
 
 	server := &KVServer{
@@ -73,7 +74,7 @@ func NewKVServer(conf Config) (*KVServer, error) {
 		MetadatPath:  path.Join(dbPath, metaPath),
 		DataPath:     path.Join(dbPath, dataPath),
 
-		Logger: fileLogger,
+		Logger: serverLogger,
 	}
 
 	return server, nil

@@ -105,7 +105,11 @@ func NewCliftonDBKVStore(dirPath string, logPath string) (*CliftonDBKVStore, err
 	if err != nil {
 		return nil, err
 	}
-	store.EnsureDirsExist()
+	err = store.EnsureDirsExist()
+
+	if err != nil {
+		return nil, err
+	}
 
 	store.logger, err = logger.NewFileLogger(
 		storeLogFilePath,
@@ -167,8 +171,18 @@ func (s *CliftonDBKVStore) WriteLockFile(data KVStoreLockFileData) error {
 	return nil
 }
 
-func (s *CliftonDBKVStore) EnsureDirsExist() {
+func (s *CliftonDBKVStore) EnsureDirsExist() error {
+	err := os.MkdirAll(s.WALRoot, os.ModePerm)
+	if err != nil {
+		return err
+	}
 
+	err = os.MkdirAll(s.SSTablesRoot, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func BootstrapFromDir(dirPath string) *KVStore {
@@ -196,7 +210,11 @@ func (s *CliftonDBKVStore) flushMemTable() error {
 
 	}
 
-	s.fileTable.BeginFlushing()
+	err := s.fileTable.BeginFlushing(s.prevMemtable)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -17,8 +17,6 @@ type Logger interface {
 
 	Fatalln(v ...interface{})
 	Fatalf(fmtStr string, v ...interface{})
-
-	Close() error
 }
 
 func NewFileLogger(filePath string, prefix string, flags int) (*FileLogger, error) {
