@@ -11,6 +11,16 @@ type FileLogger struct {
 	LogFile     *os.File
 }
 
+type Logger interface {
+	Println(v ...interface{})
+	Printf(fmt string, v ...interface{})
+
+	Fatalln(v ...interface{})
+	Fatalf(fmtStr string, v ...interface{})
+
+	Close() error
+}
+
 func NewFileLogger(filePath string, prefix string, flags int) (*FileLogger, error) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {

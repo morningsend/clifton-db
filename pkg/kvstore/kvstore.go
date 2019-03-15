@@ -2,10 +2,12 @@ package kvstore
 
 import (
 	"context"
+	"fmt"
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
 	"github.com/zl14917/MastersProject/pkg/kvstore/wal"
 	"github.com/zl14917/MastersProject/pkg/logger"
 	"gopkg.in/yaml.v2"
+	"log"
 	"os"
 	"path"
 	"sync/atomic"
@@ -17,6 +19,7 @@ const (
 	sstablePath  = "sstables/"
 	walPath      = "wal/"
 	logFileName  = "kvstore-%d.log"
+	logPrefix    = "[kvstore-%d]"
 	lockFileName = "store.lock.file"
 )
 
@@ -67,7 +70,7 @@ type CliftonDBKVStore struct {
 	memtable  MemTable
 	wal       *wal.WAL
 
-	logger        *logger.FileLogger
+	logger        logger.Logger
 	backgroundCtx context.Context
 	prevMemtable  MemTable
 
@@ -77,27 +80,44 @@ type CliftonDBKVStore struct {
 	KVStoreLockFilePath string
 }
 
-func NewCliftonDBKVStore(dirPath string) (*CliftonDBKVStore, error) {
+func NewCliftonDBKVStore(dirPath string, logPath string) (*CliftonDBKVStore, error) {
 	var err error
+
+	walRootPath := path.Join(dirPath, walPath)
+
 	store := &CliftonDBKVStore{
 		fileTable:    nil,
 		memtable:     NewMapMemTable(),
-		wal:          wal.NewWAL(dirPath),
+		wal:          wal.NewWAL(walRootPath),
 		KVStoreRoot:  dirPath,
 		SSTablesRoot: path.Join(dirPath, sstablePath),
 
-		WALRoot:             path.Join(dirPath, walPath),
-		KVStoreLockFilePath: path.Join(dirPath, walPath, lockFileName),
+		WALRoot:             walRootPath,
+		KVStoreLockFilePath: path.Join(dirPath, walRootPath, lockFileName),
 
-		//logger: NewFileLogger,
+		logger: nil,
 	}
+
 	data, err := store.ReadLockFile()
+
+	storeLogFilePath := path.Join(logPath, fmt.Sprintf(logFileName, data.PartitionId))
 
 	if err != nil {
 		return nil, err
 	}
 	store.EnsureDirsExist()
+
+	store.logger, err = logger.NewFileLogger(
+		storeLogFilePath,
+		fmt.Sprintf(logPrefix, data.PartitionId),
+		log.LstdFlags,
+	)
+
+	if err != nil {
+		store.logger = log.New(os.Stdout, fmt.Sprintf(logPrefix, data.PartitionId), log.LstdFlags)
+	}
 	err = store.walCheckForRecovery()
+
 	if err != nil {
 		return nil, err
 	}

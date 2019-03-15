@@ -167,7 +167,7 @@ func (s *KVServer) boostrapInStandaloneMode() error {
 func (s *KVServer) boostrapKVStoresForEachPartition(partitionIds []PartitionId) error {
 	for _, id := range partitionIds {
 		storeRootPath := path.Join(s.DataPath, strconv.Itoa(int(id)))
-		store, err := kvstore.NewCliftonDBKVStore(storeRootPath)
+		store, err := kvstore.NewCliftonDBKVStore(storeRootPath, s.LogsPath)
 
 		if err != nil {
 			return err
