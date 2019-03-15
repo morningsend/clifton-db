@@ -4,9 +4,16 @@ import (
 	"context"
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
 	"github.com/zl14917/MastersProject/pkg/kvstore/wal"
+	"github.com/zl14917/MastersProject/pkg/logger"
+	"path"
 	"sync/atomic"
 	"time"
 	"unsafe"
+)
+
+const (
+	sstablePath = "sstables/"
+	walPath     = "wal/"
 )
 
 type KVStoreReadOptions interface {
@@ -25,16 +32,14 @@ type KVStoreOpenOptions interface {
 
 type KVStoreOptions struct {
 	WALSegmentSizeBytes int
-	MaxKeySizeBytes     int
-	MaxValueSizeBytes   int
-	BlockSize           int
+	DataBlockSize       int
 	IndexBlockSize      int
 }
 
 var defaultKVStoreOptions = KVStoreOptions{
 	WALSegmentSizeBytes: 1024 * 1024 * 16,
-	MaxKeySizeBytes:     1024 * 4,
-	MaxValueSizeBytes:   1024 * 4,
+	DataBlockSize:       1024 * 16,
+	IndexBlockSize:      1024 * 4,
 }
 
 type KVStoreMetadata struct {
@@ -49,11 +54,40 @@ type CliftonDBKVStore struct {
 	memtable  MemTable
 	wal       *wal.WAL
 
+	logger        *logger.FileLogger
 	backgroundCtx context.Context
 	prevMemtable  MemTable
+
+	KVStoreRoot     string
+	SSTablesRoot    string
+	WALRoot         string
+	WALLockFilePath string
 }
 
-func (s *CliftonDBKVStore) bootstrapFromDir(dirPath string) error {
+func NewCliftonDBKVStore(dirPath string) (*CliftonDBKVStore, error) {
+
+	store := &CliftonDBKVStore{
+		fileTable:    nil,
+		memtable:     NewMapMemTable(),
+		wal:          wal.NewWAL(dirPath),
+		KVStoreRoot:  dirPath,
+		SSTablesRoot: path.Join(dirPath, sstablePath),
+
+		WALRoot:         path.Join(dirPath, walPath),
+		WALLockFilePath: path.Join(dirPath, walPath, wal.WALLockFileName),
+
+		//logger: NewFileLogger,
+	}
+	store.EnsureDirsExist()
+
+	return store, nil
+}
+
+func (s *CliftonDBKVStore) EnsureDirsExist() {
+
+}
+
+func BootstrapFromDir(dirPath string) *KVStore {
 	return nil
 }
 
@@ -78,7 +112,7 @@ func (s *CliftonDBKVStore) flushMemTable() error {
 
 	}
 
-	s.fileTable.BeginFlushing(s.prevMemtable, nil)
+	s.fileTable.BeginFlushing()
 
 	return nil
 }

@@ -1,5 +1,0 @@
-package kvserver
-
-func boostrap() {
-
-}

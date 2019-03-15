@@ -32,7 +32,7 @@ func TestDeserializeConfigFile(t *testing.T) {
 	err := decoder.Decode(&config)
 
 	if err != nil {
-		t.Errorf("error reading config file: %v\n", err)
+		t.Errorf("error reading Conf file: %v\n", err)
 	}
 	fmt.Println(config)
 }

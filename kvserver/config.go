@@ -1,15 +1,15 @@
 package kvserver
 
 type KVStorageConfig struct {
-	PathDir string `yaml:"path-dir"`
+	IndexBlockSize int `yaml:"index-block-size"`
+	DataBlockSize  int `yaml:"data-block-size"`
 }
 
 type LogStorageConfig struct {
-	PathDir     string `yaml:"path-dir"`
 	SegmentSize string `yaml:"segment-size"`
 }
 
-type Nodes struct {
+type Cluster struct {
 	SelfId   uint32 `yaml:"self-id"`
 	Port     uint32 `yaml:"port"`
 	PeerList []Peer `yaml:"peers"`
@@ -22,7 +22,8 @@ type Peer struct {
 }
 
 type Config struct {
-	Data  KVStorageConfig  `yaml:"data"`
-	Log   LogStorageConfig `yaml:"log"`
-	Nodes Nodes            `yaml:"nodes"`
+	Data   KVStorageConfig  `yaml:"data"`
+	Log    LogStorageConfig `yaml:"log"`
+	DbPath string           `yaml:"db-path"`
+	Nodes  Cluster          `yaml:"nodes"`
 }

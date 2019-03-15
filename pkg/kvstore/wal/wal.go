@@ -98,7 +98,12 @@ func (w *WAL) TryRestoreFromLockFile() error {
 		return err
 	}
 
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}()
 
 	lockFile := walLockFileContent{}
 	err = yaml.NewDecoder(file).Decode(&lockFile)
