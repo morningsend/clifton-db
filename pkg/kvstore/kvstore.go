@@ -5,6 +5,8 @@ import (
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
 	"github.com/zl14917/MastersProject/pkg/kvstore/wal"
 	"github.com/zl14917/MastersProject/pkg/logger"
+	"gopkg.in/yaml.v2"
+	"os"
 	"path"
 	"sync/atomic"
 	"time"
@@ -12,11 +14,22 @@ import (
 )
 
 const (
-	sstablePath = "sstables/"
-	walPath     = "wal/"
+	sstablePath  = "sstables/"
+	walPath      = "wal/"
+	logFileName  = "kvstore-%d.log"
+	lockFileName = "store.lock.file"
 )
 
-type KVStoreReadOptions interface {
+type KVStoreLockFileData struct {
+	PartitionId    uint32 `yaml:"partition-id"`
+	WALCommitIndex uint64 `yaml:"wal-commit-index"`
+	WALApplyIndex  uint64 `yaml:"wal-apply-index"`
+}
+
+var defaultKVStoreLockFileData = KVStoreLockFileData{
+	PartitionId:    0,
+	WALCommitIndex: 0,
+	WALApplyIndex:  0,
 }
 
 type KVStore interface {
@@ -58,14 +71,14 @@ type CliftonDBKVStore struct {
 	backgroundCtx context.Context
 	prevMemtable  MemTable
 
-	KVStoreRoot     string
-	SSTablesRoot    string
-	WALRoot         string
-	WALLockFilePath string
+	KVStoreRoot         string
+	SSTablesRoot        string
+	WALRoot             string
+	KVStoreLockFilePath string
 }
 
 func NewCliftonDBKVStore(dirPath string) (*CliftonDBKVStore, error) {
-
+	var err error
 	store := &CliftonDBKVStore{
 		fileTable:    nil,
 		memtable:     NewMapMemTable(),
@@ -73,14 +86,65 @@ func NewCliftonDBKVStore(dirPath string) (*CliftonDBKVStore, error) {
 		KVStoreRoot:  dirPath,
 		SSTablesRoot: path.Join(dirPath, sstablePath),
 
-		WALRoot:         path.Join(dirPath, walPath),
-		WALLockFilePath: path.Join(dirPath, walPath, wal.WALLockFileName),
+		WALRoot:             path.Join(dirPath, walPath),
+		KVStoreLockFilePath: path.Join(dirPath, walPath, lockFileName),
 
 		//logger: NewFileLogger,
 	}
+	data, err := store.ReadLockFile()
+
+	if err != nil {
+		return nil, err
+	}
 	store.EnsureDirsExist()
+	err = store.walCheckForRecovery()
+	if err != nil {
+		return nil, err
+	}
+	err = store.WriteLockFile(data)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return store, nil
+}
+
+func (s *CliftonDBKVStore) ReadLockFile() (data KVStoreLockFileData, err error) {
+	file, err := os.OpenFile(s.KVStoreLockFilePath, os.O_RDONLY, 0644)
+
+	if err != nil {
+		return defaultKVStoreLockFileData, err
+	}
+
+	defer file.Close()
+
+	err = yaml.NewDecoder(file).Decode(&data)
+	if err != nil {
+		return defaultKVStoreLockFileData, err
+	}
+	return
+}
+
+func (s *CliftonDBKVStore) WriteLockFile(data KVStoreLockFileData) error {
+	file, err := os.OpenFile(s.KVStoreLockFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+
+	if err != nil {
+		return err
+	}
+
+	err = yaml.NewEncoder(file).Encode(data)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *CliftonDBKVStore) EnsureDirsExist() {

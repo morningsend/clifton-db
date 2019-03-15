@@ -1,11 +1,11 @@
 package kvserver
 
 import (
-	"fmt"
 	"github.com/zl14917/MastersProject/pkg/kvstore"
 	"github.com/zl14917/MastersProject/pkg/logger"
 	"github.com/zl14917/MastersProject/router"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v2"
 	"log"
 	"os"
 	"path"
@@ -22,12 +22,22 @@ const logPrefix = "[kv-server]"
 const logFileName = "kvserver.log"
 
 type PartitionId int
+
+type KvServerLockFileData struct {
+	Partitions []PartitionId
+}
+
+var defaultKvServerLockFileData = KvServerLockFileData{
+	Partitions: []PartitionId{0},
+}
+
 type KVServer struct {
 	Conf Config
 
 	kvGrpcApiServer *GrpcKVServer
 
-	kvStores map[PartitionId]*kvstore.CliftonDBKVStore
+	Partitions []PartitionId
+	kvStores   map[PartitionId]*kvstore.CliftonDBKVStore
 
 	requestRouter *router.ClientRequestRouter
 	grpcServer    grpc.Server
@@ -50,7 +60,7 @@ func NewKVServer(conf Config) (*KVServer, error) {
 		return nil, err
 	}
 
-	return &KVServer{
+	server := &KVServer{
 		Conf: conf,
 
 		kvGrpcApiServer: nil,
@@ -64,7 +74,9 @@ func NewKVServer(conf Config) (*KVServer, error) {
 		DataPath:     path.Join(dbPath, dataPath),
 
 		Logger: fileLogger,
-	}, nil
+	}
+
+	return server, nil
 }
 
 func (s *KVServer) BootstrapServer() error {
@@ -74,30 +86,44 @@ func (s *KVServer) BootstrapServer() error {
 	return s.boostrapInClusterMode()
 }
 
-func (s *KVServer) detectLockFile() (bool, error) {
+func (s *KVServer) detectLockFile() (KvServerLockFileData, error) {
 	var (
-		stat os.FileInfo
 		err  error
+		data KvServerLockFileData
 	)
-	if stat, err = os.Stat(s.LockFilePath); err != nil {
-		return false, err
+	file, err := os.OpenFile(s.LockFilePath, os.O_RDONLY, 0644)
+
+	if err != nil {
+		return defaultKvServerLockFileData, nil
 	}
 
-	return !stat.IsDir(), nil
+	defer file.Close()
+
+	err = yaml.NewDecoder(file).Decode(&data)
+	if err != nil {
+		return defaultKvServerLockFileData, err
+	}
+	return data, nil
 }
 
-func (s *KVServer) writeLockFile() error {
-	file, err := os.Create(s.LockFilePath)
+func (s *KVServer) WriteLockFile(data KvServerLockFileData) error {
+	file, err := os.OpenFile(s.LockFilePath, os.O_WRONLY|os.O_CREATE, 0644)
+
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			panic(err)
-		}
-	}()
+	err = yaml.NewEncoder(file).Encode(data)
+
+	if err != nil {
+		file.Close()
+		return err
+	}
+
+	err = file.Close()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -115,36 +141,22 @@ func (s *KVServer) boostrapInStandaloneMode() error {
 
 	//
 	var (
-		prevInstance bool
-		err          error
-		partitionIds []PartitionId
+		err error
 	)
-	prevInstance, err = s.detectLockFile()
+	savedSettings, err := s.detectLockFile()
 
-	if !prevInstance {
-		const DefaultPartitionId = 0
-		err = s.createFolders()
-		if err != nil {
-			return fmt.Errorf("cannot create all folders:", err)
-		}
-		partitionIds = []PartitionId{DefaultPartitionId}
+	s.Partitions = make([]PartitionId, len(savedSettings.Partitions))
 
-	} else {
-		partitionIds, err = getPartitionsFromDataDir(s.DataPath, PartionLockFileName)
-		if err != nil {
-			return err
-		}
-	}
+	copy(s.Partitions, savedSettings.Partitions)
 
-	err = s.boostrapKVStoresForEachPartition(partitionIds)
+	err = s.boostrapKVStoresForEachPartition(savedSettings.Partitions)
 
 	if err != nil {
 		return err
 	}
 
-	if !prevInstance {
-		err = s.writeLockFile()
-	}
+	err = s.WriteLockFile(savedSettings)
+
 	if err != nil {
 		return err
 	}
@@ -168,8 +180,4 @@ func (s *KVServer) boostrapKVStoresForEachPartition(partitionIds []PartitionId) 
 
 func (s *KVServer) createFolders() error {
 	return ensureDirsExist(s.DataPath, s.MetadatPath, s.LogsPath)
-}
-
-func (s *KVServer) LoadPartitions() error {
-
 }
