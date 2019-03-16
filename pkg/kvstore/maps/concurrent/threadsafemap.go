@@ -9,7 +9,7 @@ import (
 type mapValue struct {
 	Data      []byte
 	Delete    bool
-	Timestamp uint64
+	Timestamp int64
 }
 
 type ThreadsafeMap struct {
@@ -51,7 +51,7 @@ func (m *ThreadsafeMap) Remove(key maps.Key) (value maps.Value, ok bool) {
 	value = writeValue.Data
 	writeValue.Data = nil
 	writeValue.Delete = true
-	writeValue.Timestamp = time.Now()
+	writeValue.Timestamp = time.Now().Unix()
 	m.Map[key] = writeValue
 
 	return value, true
@@ -87,11 +87,11 @@ func (m *ThreadsafeMap) makeSnapshot() (keys []maps.Key, values []maps.Value) {
 	len := len(m.Map)
 	keys = make([]maps.Key, len, len)
 	values = make([]maps.Value, len, len)
-
+	
 	i := 0
 	for k, v := range m.Map {
 		keys[i] = k
-		values[i] = v
+		values[i] = v.Data
 	}
 
 	return
@@ -103,7 +103,6 @@ func (m *ThreadsafeMap) Iterator() maps.MapIterator {
 		keys:   keys,
 		values: values,
 		len:    len(keys),
-
 		currentIndex: 0,
 	}
 }

@@ -8,15 +8,19 @@ type ThreadSafeMapMemTable struct {
 	MaxValueSize int
 }
 
-func (ThreadSafeMapMemTable) Put(key []byte, value []byte) error {
+func (m *ThreadSafeMapMemTable) Exists(key []byte) (ok bool, err error) {
+	panic("implement me")
+}
+
+func (m *ThreadSafeMapMemTable) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (ThreadSafeMapMemTable) Get(key []byte) (value [] byte, ok bool, err error) {
+func (m *ThreadSafeMapMemTable) Get(key []byte) (value [] byte, ok bool, err error) {
 	return
 }
 
-func (ThreadSafeMapMemTable) Remove(key []byte) (ok bool, err error) {
+func (m *ThreadSafeMapMemTable) Remove(key []byte) (ok bool, err error) {
 	return
 }
 
@@ -24,8 +28,9 @@ func (m *ThreadSafeMapMemTable) KeyCountEstimate() uint {
 	return uint(m.Len())
 }
 
-func (ThreadSafeMapMemTable) Iterator() SortedKVIterator {
-	return nil
+func (m *ThreadSafeMapMemTable) Iterator() SortedKVIterator {
+	iter := m.ThreadsafeMap.Iterator()
+
 }
 
 func NewMapMemTable(maxKeySize int, maxValueSize int) MemTable {

@@ -3,6 +3,7 @@ package kvstore
 import (
 	"context"
 	"fmt"
+	"github.com/zl14917/MastersProject/pkg/kvstore/tables"
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
 	"github.com/zl14917/MastersProject/pkg/kvstore/wal"
 	"github.com/zl14917/MastersProject/pkg/logger"
@@ -66,13 +67,13 @@ type KVStoreMetadata struct {
 }
 
 type CliftonDBKVStore struct {
-	fileTable FileTable
-	memtable  MemTable
+	fileTable tables.FileTable
+	memtable  tables.MemTable
 	wal       *wal.WAL
 
 	logger        logger.Logger
 	backgroundCtx context.Context
-	prevMemtable  MemTable
+	prevMemtable  tables.MemTable
 
 	KVStoreRoot         string
 	SSTablesRoot        string
@@ -87,7 +88,7 @@ func NewCliftonDBKVStore(dirPath string, logPath string) (*CliftonDBKVStore, err
 
 	store := &CliftonDBKVStore{
 		fileTable:    nil,
-		memtable:     NewMapMemTable(),
+		memtable:     tables.NewMapMemTable(1000, 1000),
 		wal:          wal.NewWAL(walRootPath),
 		KVStoreRoot:  dirPath,
 		SSTablesRoot: path.Join(dirPath, sstablePath),
@@ -198,8 +199,9 @@ func (s *CliftonDBKVStore) rebuildMemTableFromWAL() error {
 }
 
 func (s *CliftonDBKVStore) flushMemTable() error {
+	s.logger.Printf("starting to flush memtable")
 
-	newMemTable := NewLockFreeMemTable()
+	newMemTable := tables.NewMapMemTable(4000, 4000)
 	s.prevMemtable = s.memtable
 
 	for !atomic.CompareAndSwapPointer(
@@ -210,11 +212,9 @@ func (s *CliftonDBKVStore) flushMemTable() error {
 
 	}
 
-	err := s.fileTable.BeginFlushing(s.prevMemtable)
+	time.Sleep(100 * time.Millisecond)
 
-	if err != nil {
-		return err
-	}
+	s.fileTable.BeginFlushing(s.prevMemtable, nil)
 
 	return nil
 }
@@ -232,18 +232,25 @@ func FromDir(dirPath, options KVStoreOpenOptions) KVStore {
 	return store
 }
 
-func (CliftonDBKVStore) Get(keyType types.KeyType) (data types.ValueType, ok bool, err error) {
+func (s *CliftonDBKVStore) Get(key types.KeyType) (data types.ValueType, ok bool, err error) {
+	data, ok, err = s.memtable.Get(key)
+	if ok {
+		return
+	}
 	return
 }
 
-func (CliftonDBKVStore) Put(key types.KeyType, data types.ValueType) (err error) {
+func (s *CliftonDBKVStore) Put(key types.KeyType, data types.ValueType) (err error) {
+	err = s.memtable.Put(key, data)
 	return
 }
 
-func (CliftonDBKVStore) Delete(key types.KeyType) (ok bool, err error) {
+func (s *CliftonDBKVStore) Delete(key types.KeyType) (ok bool, err error) {
+	ok, err = s.memtable.Remove(key)
 	return
 }
 
-func (CliftonDBKVStore) Exists(key types.KeyType) (ok bool, err error) {
+func (s *CliftonDBKVStore) Exists(key types.KeyType) (ok bool, err error) {
+	ok, err = s.memtable.Exists(key)
 	return
 }

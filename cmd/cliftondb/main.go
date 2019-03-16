@@ -44,13 +44,7 @@ log:
 nodes:
   self-id: 1
   port: 10030
-  peers:
-    - id: 2
-      host: localhost
-      port: 10031
-    - id: 3
-      host: localhost
-      port: 10032
+  peers: []
 `
 
 const TESTING = true
@@ -62,7 +56,7 @@ func LoadConfig(config *kvserver.Config) (err error) {
 		yamlDecoder := yaml.NewDecoder(reader)
 		err := yamlDecoder.Decode(config)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 			return err
 		}
 		return nil
@@ -70,7 +64,7 @@ func LoadConfig(config *kvserver.Config) (err error) {
 
 	flag.Parse()
 	if *configPath == "" {
-		fmt.Fprintf(os.Stderr, "Error reading config path, missing.")
+		_, _ = fmt.Fprintf(os.Stderr, "Error reading config path, missing.")
 		return err
 	}
 	absPath, err := resolveAbsConfigPath(*configPath)
@@ -97,7 +91,7 @@ func LoadConfig(config *kvserver.Config) (err error) {
 	err = yamlDecoder.Decode(config)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 		return err
 	}
 	return nil
@@ -111,15 +105,20 @@ func main() {
 	}
 
 	listener, err := net.Listen("tcp", "localhost:"+strconv.Itoa(int(config.Nodes.Port)))
+
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot listen on port", config.Nodes.Port)
+		_, _ = fmt.Fprintln(os.Stderr, "Cannot listen on port", config.Nodes.Port)
 		os.Exit(-1)
 	}
 
-	kvServer := kvserver.NewServer()
+	kvServer, err := kvserver.NewKVServer(config)
+	if err != nil {
+		log.Fatalln("error create new kvserver", err)
+	}
+
 	log.Println("Starting grpc server on port:", config.Nodes.Port)
 	grpcServer := grpc.NewServer()
-	kvServer.Register(grpcServer)
+	kvServer.RegisterGrpcServer(grpcServer)
 
 	if err = grpcServer.Serve(listener); err != nil {
 		log.Fatalf("error serving grpc: %v\n", err)

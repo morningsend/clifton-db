@@ -51,6 +51,10 @@ type KVServer struct {
 	Logger logger.Logger
 }
 
+func (s *KVServer) RegisterGrpcServer(server *grpc.Server) {
+	s.kvGrpcApiServer.Register(server)
+}
+
 func NewKVServer(conf Config) (*KVServer, error) {
 	var serverLogger logger.Logger
 	dbPath := conf.DbPath

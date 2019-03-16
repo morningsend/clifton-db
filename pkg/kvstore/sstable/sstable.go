@@ -8,6 +8,7 @@ import (
 	"github.com/zl14917/MastersProject/pkg/kvstore/types"
 	"os"
 	"path"
+	"strconv"
 )
 
 type EntryFlags uint32
@@ -49,8 +50,8 @@ type SSTableOps interface {
 	NewWriter() SSTableWriter
 }
 
-const indexFileName = "-index"
-const dataFileName = "-data"
+const indexFileName = "index"
+const dataFileName = "data"
 
 type SSTableOpenOptions struct {
 	Prefix       string
@@ -60,13 +61,15 @@ type SSTableOpenOptions struct {
 	KeyBlockSize int
 	InMemStore   bool
 	LoadExisting bool
+	Timestamp    int64
 }
 
 func NewSSTable(dirPath string, options *SSTableOpenOptions) (*SSTable) {
 
+	timeStr := strconv.FormatInt(options.Timestamp, 10)
 	sstable := &SSTable{
-		IndexFilePath:    path.Join(dirPath, options.Prefix+indexFileName),
-		DataFilePath:     path.Join(dirPath, options.Prefix+dataFileName),
+		IndexFilePath:    path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, indexFileName)),
+		DataFilePath:     path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, dataFileName)),
 		InMem:            options.InMemStore,
 		MaxKeySize:       options.MaxKeySize,
 		MaxValueSize:     options.MaxValueSize,
@@ -192,6 +195,10 @@ func (s *SSTable) Close() error {
 	}
 
 	return nil
+}
+
+func (s *SSTable) PermanentlyRemove() {
+
 }
 
 type sstableBlockIndexWriter struct {
