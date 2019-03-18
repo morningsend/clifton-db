@@ -8,9 +8,19 @@ import (
 	"unsafe"
 )
 
-var indexHeaderSize = unsafe.Sizeof(SSTableIndexFileHeader{})
+const (
+	indexHeaderSize             = unsafe.Sizeof(SSTableIndexFileHeader{})
+	blockHeaderSize             = unsafe.Sizeof(SSTableIndexBlock{})
+	indexEntryHeaderSize        = unsafe.Offsetof(SSTableIndexEntry{}.DataFileOffSet)
+	IndexFileMagic       uint32 = 0x32323232
+)
 
-const IndexFileMagic uint32 = 0x32323232
+type IndexKeyFlag uint32
+
+const (
+	SSTableIndexKeyInsert IndexKeyFlag = 1 << iota
+	SSTableIndexKeyDelete
+)
 
 type IndexFileFlags uint32
 
@@ -109,4 +119,15 @@ func (index *SSTableIndexFile) CreateFile() error {
 
 func (index *SSTableIndexFile) WriteEntry() {
 
+}
+
+func MaxKeySizeFitInBlocK(blockSize int) int {
+	availableBlockBytes := blockSize - int(blockHeaderSize)
+	availableEntryBytes := availableBlockBytes - int(indexEntryHeaderSize)
+
+	return availableEntryBytes
+}
+
+func SizeOfIndexEntry(entry *SSTableIndexEntry) int {
+	return int(indexHeaderSize) + int(entry.KeyLen)
 }

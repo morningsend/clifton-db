@@ -57,13 +57,13 @@ func NewSSTableRef(level int) *SStableRef {
 
 	tablet := &SStableRef{}
 	options := sstable.SSTableOpenOptions{
-		Prefix:       "level_" + strconv.Itoa(level),
-		MaxKeySize:   0,
-		MaxValueSize: 0,
-		BlockSize:    0,
-		KeyBlockSize: int(sstable.BaseBlockSize),
-		LoadExisting: false,
-		Timestamp:    time.Now().Unix(),
+		Prefix:         "level_" + strconv.Itoa(level),
+		MaxKeySize:     0,
+		MaxValueSize:   0,
+		BlockSize:      0,
+		IndexBlockSize: int(sstable.BaseBlockSize),
+		LoadExisting:   false,
+		Timestamp:      time.Now().Unix(),
 	}
 	tablet.SSTable = *(sstable.NewSSTable("", &options))
 	return tablet

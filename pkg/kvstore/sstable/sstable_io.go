@@ -10,9 +10,14 @@ type SSTableWriter interface {
 	Write(key types.KeyType, value types.ValueType, deleted bool) error
 	MaxKeySize() int
 	MaxValueSize() int
+	Commit() error
 }
 
 type SSTableReader interface {
 	ReadNext() (key types.KeyType, value types.ValueType, deleted bool, err error)
 	FindRecord(key types.KeyType) (value types.ValueType, deleted bool, ok bool, err error)
+}
+
+func NextMultipleOf4(n int) int {
+	return (n + 3) & 0x03
 }

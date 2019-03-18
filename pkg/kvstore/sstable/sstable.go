@@ -34,8 +34,9 @@ type SSTable struct {
 	MaxKeySize   int
 	MaxValueSize int
 
-	InMem            bool
-	StorageBlockSize int
+	InMem                 bool
+	IndexStorageBlockSize int
+	DataStoreBlockSize    int
 
 	dataStorage  blockstore.BlockStorage
 	indexStorage blockstore.BlockStorage
@@ -45,7 +46,7 @@ type SSTable struct {
 	loadExisting bool
 }
 
-type SSTableOps interface {
+type SSTableIO interface {
 	NewReader() SSTableReader
 	NewWriter() SSTableWriter
 }
@@ -54,41 +55,53 @@ const indexFileName = "index"
 const dataFileName = "data"
 
 type SSTableOpenOptions struct {
-	Prefix       string
-	MaxKeySize   int
-	MaxValueSize int
-	BlockSize    int
-	KeyBlockSize int
-	InMemStore   bool
-	LoadExisting bool
-	Timestamp    int64
+	Prefix         string
+	MaxKeySize     int
+	MaxValueSize   int
+	IndexBlockSize int
+	DataBlockSize  int
+	InMemStore     bool
+	LoadExisting   bool
+	Timestamp      int64
+}
+
+var defaultSSTableOpenOptions = SSTableOpenOptions{
+	Prefix:         "level_0_",
+	MaxKeySize:     4 * 1024,
+	MaxValueSize:   16 * 1024,
+	IndexBlockSize: 4 * 1024,
+	DataBlockSize:  16 * 1024,
 }
 
 func NewSSTable(dirPath string, options *SSTableOpenOptions) (*SSTable) {
 
 	timeStr := strconv.FormatInt(options.Timestamp, 10)
 	sstable := &SSTable{
-		IndexFilePath:    path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, indexFileName)),
-		DataFilePath:     path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, dataFileName)),
-		InMem:            options.InMemStore,
-		MaxKeySize:       options.MaxKeySize,
-		MaxValueSize:     options.MaxValueSize,
-		StorageBlockSize: options.BlockSize,
-		indexStorage:     nil,
-		dataStorage:      nil,
-		loadExisting:     options.LoadExisting,
+		IndexFilePath: path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, indexFileName)),
+		DataFilePath:  path.Join(dirPath, fmt.Sprintf("%s%s_%s", options.Prefix, timeStr, dataFileName)),
+		InMem:         options.InMemStore,
+		MaxKeySize:    options.MaxKeySize,
+		MaxValueSize:  options.MaxValueSize,
+
+		IndexStorageBlockSize: options.IndexBlockSize,
+		DataStoreBlockSize:    options.DataBlockSize,
+
+		indexStorage: nil,
+		dataStorage:  nil,
+		loadExisting: options.LoadExisting,
 	}
 
 	return sstable
 }
 
-func (s *SSTable) openStorage(useInMem bool, path string) (blockstore.BlockStorage, error) {
+func (s *SSTable) openStorage(useInMem bool, blockSize int, path string) (blockstore.BlockStorage, error) {
 	var (
 		store blockstore.BlockStorage
 		err   error
 	)
+
 	if useInMem {
-		store = blockstore.NewInMemBlockStorage(s.StorageBlockSize)
+		store = blockstore.NewInMemBlockStorage(blockSize)
 
 		return store, nil
 	}
@@ -96,27 +109,46 @@ func (s *SSTable) openStorage(useInMem bool, path string) (blockstore.BlockStora
 	if s.loadExisting {
 		store, err = blockstore.OpenBlockFile(
 			path,
-			blockstore.WithBlockSize(s.StorageBlockSize),
+			blockstore.WithBlockSize(blockSize),
 		)
 	} else {
 		store, err = blockstore.NewBlockFile(
 			path,
-			blockstore.WithBlockSize(s.StorageBlockSize),
+			blockstore.WithBlockSize(blockSize),
 		)
 	}
 
 	if err != nil {
 		return nil, err
 	}
+
 	return store, err
 }
-func (s *SSTable) createOrOpenIndexStorage(useInMem bool) (blockstore.BlockStorage, error) {
 
-	return s.openStorage(useInMem, s.IndexFilePath)
+func (s *SSTable) createOrOpenIndexStorage() error {
+	var err error
+	if s.indexStorage == nil {
+		s.indexStorage, err = s.openStorage(s.InMem, s.IndexStorageBlockSize, s.IndexFilePath)
+		if err != nil {
+			s.indexStorage = nil
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (s *SSTable) createOrOpenDataStorage(useInMem bool) (blockstore.BlockStorage, error) {
-	return s.openStorage(useInMem, s.DataFilePath)
+func (s *SSTable) createOrOpenDataStorage() error {
+	var err error
+	if s.dataStorage == nil {
+		s.dataStorage, err = s.openStorage(s.InMem, s.DataStoreBlockSize, s.DataFilePath)
+		if err != nil {
+			s.dataStorage = nil
+			return err
+		}
+	}
+
+	return nil
 }
 
 func LoadSSTableFrom(dirPath string, options *SSTableOpenOptions) *SSTable {
@@ -125,57 +157,41 @@ func LoadSSTableFrom(dirPath string, options *SSTableOpenOptions) *SSTable {
 }
 
 func (s *SSTable) NewReader() (SSTableReader, error) {
-	reader := &sstableReaderStruct{
-
+	err := s.createOrOpenDataStorage()
+	if err != nil {
+		return nil, err
 	}
+
+	err = s.createOrOpenIndexStorage()
+
+	if err != nil {
+		return nil, err
+	}
+	reader := &sstableReaderStruct{
+		IndexStorage: s.indexStorage,
+		DataStorage:  s.dataStorage,
+	}
+
 	return reader, nil
 }
 
 func (s *SSTable) NewWriter() (SSTableWriter, error) {
 
-	var (
-		indexStorage blockstore.BlockStorage
-		dataStorage  blockstore.BlockStorage
-		err          error
-	)
-	if s.indexStorage == nil {
-		indexStorage, err = s.createOrOpenIndexStorage(s.InMem)
-
-		if err != nil {
-			return nil, err
-		}
-		s.indexStorage = indexStorage
-	}
-
-	if s.dataStorage == nil {
-		dataStorage, err = s.createOrOpenDataStorage(s.InMem)
-
-		if err != nil {
-			_ = indexStorage.Close()
-
-			if !s.InMem {
-				_ = os.Remove(s.IndexFilePath)
-			}
-			return nil, err
-		}
-		s.dataStorage = dataStorage
-	}
-
 	indexWriteBuffer := bytes.NewBuffer(nil)
-	indexWriteBuffer.Grow(s.StorageBlockSize)
+	indexWriteBuffer.Grow(s.IndexStorageBlockSize)
 
 	writer := &sstableWriterStruct{
-		sstableDataWriter: sstableDataWriter{
-			Storage:      dataStorage,
-			BlockSize:    s.StorageBlockSize,
-			MaxValueSize: s.MaxValueSize,
-		},
-		sstableBlockIndexWriter: sstableBlockIndexWriter{
-			Storage:    s.indexStorage,
-			BlockSize:  s.StorageBlockSize,
-			buffer:     indexWriteBuffer,
-			MaxKeySize: s.MaxKeySize,
-		},
+		writeBuffer: indexWriteBuffer,
+
+		sstableDataWriter: newSStableDataWriter(
+			s.indexStorage,
+			s.DataStoreBlockSize,
+		),
+		sstableBlockIndexWriter: newIndexWriter(
+			s.dataStorage,
+			s.IndexStorageBlockSize,
+			s.MaxKeySize,
+		),
 	}
 
 	return writer, nil
@@ -185,20 +201,46 @@ func (s *SSTable) Close() error {
 	var errIndex, errData error
 	if s.indexStorage != nil {
 		errIndex = s.indexStorage.Close()
+
+		if errIndex == nil {
+			s.indexStorage = nil
+		}
 	}
 	if s.dataStorage != nil {
 		errData = s.dataStorage.Close()
+		if errData == nil {
+			s.dataStorage = nil
+		}
 	}
 
 	if errIndex != nil || errData != nil {
-		return fmt.Errorf("error closing storages:", errIndex, errData)
+		return fmt.Errorf("error closing storages: %v, %v", errIndex, errData)
 	}
 
 	return nil
 }
 
-func (s *SSTable) PermanentlyRemove() {
+func (s *SSTable) PermanentlyRemove() error {
+	err := s.Close()
 
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(s.DataFilePath)
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(s.IndexFilePath)
+
+	if err != nil {
+		return err
+	}
+
+	s.indexStorage = nil
+	s.dataStorage = nil
+	return nil
 }
 
 type sstableBlockIndexWriter struct {
@@ -210,12 +252,26 @@ type sstableBlockIndexWriter struct {
 }
 
 func (writer *sstableBlockIndexWriter) writeIndex(key types.KeyType, deleted bool, position blockstore.Position) error {
+	flags := SSTableIndexKeyInsert
+
+	if deleted {
+		flags = SSTableIndexKeyDelete
+	}
+
+	entry := SSTableIndexEntry{
+		Flags:  uint32(flags),
+		KeyLen: uint32(len(key)),
+	}
+
+
 	return nil
 }
 
 func newIndexWriter(storage blockstore.BlockStorage, blockSize int, maxKeySize int) sstableBlockIndexWriter {
 	return sstableBlockIndexWriter{
-		Storage: storage,
+		Storage:    storage,
+		BlockSize:  blockSize,
+		MaxKeySize: maxKeySize,
 	}
 }
 
@@ -238,6 +294,7 @@ func newSStableDataWriter(storage blockstore.BlockStorage, blockSize int) sstabl
 type sstableWriterStruct struct {
 	sstableDataWriter
 	sstableBlockIndexWriter
+	writeBuffer *bytes.Buffer
 }
 
 func (w *sstableWriterStruct) MaxKeySize() int {
@@ -252,6 +309,9 @@ func (w *sstableWriterStruct) Write(key types.KeyType, value types.ValueType, de
 	var (
 		keyLen   = len(key)
 		valueLen = len(value)
+
+		position = blockstore.UninitializedPosition
+		err      error
 	)
 
 	if w.sstableBlockIndexWriter.MaxKeySize < keyLen {
@@ -262,14 +322,21 @@ func (w *sstableWriterStruct) Write(key types.KeyType, value types.ValueType, de
 		return ValueTooLarge
 	}
 
-	position, err := w.writeValue(value)
+	if !deleted {
+		position, err = w.writeValue(value)
+	}
 
 	if err != nil {
 		return err
 	}
 
 	err = w.writeIndex(key, deleted, position)
+
 	return err
+}
+
+func (w *sstableWriterStruct) Commit() error {
+	return nil
 }
 
 type sstableReaderStruct struct {

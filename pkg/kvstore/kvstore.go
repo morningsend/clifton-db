@@ -39,7 +39,7 @@ var defaultKVStoreLockFileData = KVStoreLockFileData{
 type KVStore interface {
 	Get(keyType types.KeyType) (data types.ValueType, ok bool, err error)
 	Put(key types.KeyType, data types.ValueType) (err error)
-	Delete(key types.KeyType) (ok bool, err error)
+	Remove(key types.KeyType) (ok bool, err error)
 	Exists(key types.KeyType) (ok bool, err error)
 }
 

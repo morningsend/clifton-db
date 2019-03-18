@@ -1,4 +1,4 @@
-package concurrent
+package maps
 
 import "github.com/zl14917/MastersProject/pkg/kvstore/maps"
 

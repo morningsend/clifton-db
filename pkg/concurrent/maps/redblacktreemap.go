@@ -3,6 +3,10 @@ package maps
 type RedBlackTreeMap struct {
 }
 
+func (t *RedBlackTreeMap) Remove(key Key) (value Value, ok bool) {
+	panic("implement me")
+}
+
 func NewRedBlackTreeMap() Map {
 	return &RedBlackTreeMap{
 

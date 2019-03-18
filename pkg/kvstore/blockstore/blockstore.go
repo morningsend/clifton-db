@@ -34,6 +34,11 @@ type Position struct {
 	Block  int
 	Offset int
 }
+
+var UninitializedPosition = Position{
+	-1, -1,
+}
+
 type BlockStorage interface {
 	blockStorage()
 

@@ -1,8 +1,16 @@
 package sstable
 
-import "github.com/zl14917/MastersProject/pkg/kvstore/types"
+import (
+	"github.com/zl14917/MastersProject/pkg/kvstore/types"
+	"unsafe"
+)
 
-const DataFileMagic uint32 = 0x33333333
+const (
+	DataFileMagic uint32 = 0x33333333
+
+	SSTableDataFileHeaderSize   = unsafe.Sizeof(SSTableDataFileHeader{})
+	SSTableDataRecordHeaderSize = unsafe.Sizeof(SSTableDataRecord{}.Value)
+)
 
 type SSTableDataFileHeader struct {
 	Magic      uint32
@@ -12,11 +20,15 @@ type SSTableDataFileHeader struct {
 }
 
 type SSTableDataRecord struct {
-	TimeStamp uint64
-	Value     types.ValueType
+	ValueLen uint32
+	Value    types.ValueType
 }
 
 type SSTableDataFile struct {
 	Header       SSTableDataFileHeader
 	RecordsCount uint32
+}
+
+func MaxValueSizeFitInBlock(blockSize int) int {
+	return blockSize - int(SSTableDataRecordHeaderSize)
 }
