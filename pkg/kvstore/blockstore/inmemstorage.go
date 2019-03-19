@@ -29,6 +29,33 @@ type InMemBlockStorage struct {
 	seqWriteOffset int
 }
 
+func (b *InMemBlockStorage) WriteWithCallback(data []byte, callback WriteEventCallback) (n int, err error) {
+
+	positionBefore := b.WritePosition()
+	n, err = b.Write(data)
+	if err != nil {
+		defer callback(positionBefore, err)
+		return
+	}
+
+	positionAfter := b.WritePosition()
+	if positionBefore.Block == positionAfter.Block {
+		defer callback(positionBefore, nil)
+	} else {
+		positionBefore.Block = positionAfter.Block
+		positionAfter.Offset = 0
+		defer callback(
+			Position{
+				Block:  positionAfter.Block,
+				Offset: 0,
+			},
+			nil,
+		)
+	}
+
+	return
+}
+
 func NewInMemBlockStorage(blockSize int) BlockStorage {
 	return &InMemBlockStorage{
 		blockSize:      blockSize,

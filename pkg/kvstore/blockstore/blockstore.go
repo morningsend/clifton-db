@@ -26,6 +26,12 @@ type BlockWriter interface {
 	WriteBlock(index uint, buffer *bytes.Buffer) (n int, err error)
 }
 
+type WriteEventCallback func(position Position, err error)
+
+type CallbackWriter interface {
+	WriteWithCallback(data []byte, callback WriteEventCallback) (n int, err error)
+}
+
 type BlockAllocator interface {
 	Allocate(nblocks int) (nAllocated int, err error)
 }
@@ -58,6 +64,8 @@ type BlockStorage interface {
 	io.Reader
 	io.Writer
 	io.Closer
+
+	CallbackWriter
 
 	NumBlocks() int
 	BlockSize() int

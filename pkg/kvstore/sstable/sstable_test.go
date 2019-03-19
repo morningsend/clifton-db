@@ -54,7 +54,8 @@ func TestSSTableBlockIndexWriter(t *testing.T) {
 		key      = []byte("greetings.message")
 		position = blockstore.Position{}
 	)
-	indexWriter := newIndexWriter(storage, blocksize, MaxKeySizeFitInBlocK(blocksize))
+
+	indexWriter := newIndexWriter(storage)
 
 	err := indexWriter.WriteIndex(key, false, position)
 	if err != nil {
