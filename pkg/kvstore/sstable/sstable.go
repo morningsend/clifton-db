@@ -178,17 +178,8 @@ func (s *SSTable) NewReader() (SSTableReader, error) {
 
 func (s *SSTable) NewWriter() (SSTableWriter, error) {
 
-	indexWriteBuffer := bytes.NewBuffer(nil)
-	indexWriteBuffer.Grow(s.IndexStorageBlockSize)
-
 	writer := &sstableWriterStruct{
-		writeBuffer: indexWriteBuffer,
-
-		sstableDataWriter: newSStableDataWriter(
-			s.dataStorage,
-			s.DataStoreBlockSize,
-		),
-
+		sstableDataWriter:       newSStableDataWriter(s.dataStorage),
 		sstableBlockIndexWriter: newIndexWriter(s.indexStorage),
 	}
 
@@ -245,6 +236,8 @@ type sstableBlockIndexWriter struct {
 	Storage   blockstore.BlockStorage
 	BlockSize int
 
+	keyCount int
+
 	currentBlockIndex uint
 	blockKeyCount     uint
 	MaxKeySize        int
@@ -252,6 +245,8 @@ type sstableBlockIndexWriter struct {
 
 	entryMarshallBuffer *bytes.Buffer
 	blockBuffer         *bytes.Buffer
+
+	header SSTableIndexFileHeader
 }
 
 func newIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
@@ -264,6 +259,23 @@ func newIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
 
 		currentBlockIndex: 1,
 	}
+}
+
+func (writer *sstableBlockIndexWriter) Commit() error {
+	buffer := bytes.NewBuffer(nil)
+	err := writer.header.Marshall(buffer)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Storage.WriteBlock(0, buffer)
+	if err != nil {
+		return err
+	}
+
+	err = writer.Storage.Sync()
+	return err
 }
 
 func (writer *sstableBlockIndexWriter) WriteIndex(key types.KeyType, deleted bool, position blockstore.Position) error {
@@ -304,21 +316,34 @@ func (writer *sstableBlockIndexWriter) WriteIndex(key types.KeyType, deleted boo
 		}
 	}
 
+	_, err = writer.blockBuffer.Write(serializedBytes)
+
+	if err != nil {
+		return err
+	}
 	writer.blockKeyCount++
-	writer.blockBuffer.Write(serializedBytes)
+	writer.keyCount++
 
 	return nil
 }
 
 func (writer *sstableBlockIndexWriter) FlushCurrentBlock() error {
-	bytes := writer.blockBuffer.Bytes()
-	binary.BigEndian.PutUint32(bytes[0:4], uint32(writer.blockKeyCount))
-	_, err := writer.Storage.WriteBlock(1, writer.blockBuffer)
+	bs := writer.blockBuffer.Bytes()
+
+	if len(bs) < 1 {
+		return nil
+	}
+
+	binary.BigEndian.PutUint32(bs[0:4], uint32(writer.blockKeyCount))
+	_, err := writer.Storage.WriteBlock(writer.currentBlockIndex, writer.blockBuffer)
+
 	if err != nil {
 		return err
 	}
+
 	writer.blockKeyCount = 0
 	writer.blockBuffer.Reset()
+	writer.currentBlockIndex++
 
 	return nil
 }
@@ -332,10 +357,12 @@ type sstableDataWriter struct {
 func (writer *sstableDataWriter) writeValue(value types.ValueType) (index blockstore.Position, err error) {
 	return blockstore.Position{}, nil
 }
-func newSStableDataWriter(storage blockstore.BlockStorage, blockSize int) sstableDataWriter {
+func newSStableDataWriter(storage blockstore.BlockStorage) sstableDataWriter {
 	return sstableDataWriter{
 		Storage:   storage,
-		BlockSize: blockSize,
+		BlockSize: storage.BlockSize(),
+
+		MaxValueSize: MaxValueSizeFitInBlock(storage.BlockSize()),
 	}
 }
 
@@ -384,6 +411,17 @@ func (w *sstableWriterStruct) Write(key types.KeyType, value types.ValueType, de
 }
 
 func (w *sstableWriterStruct) Commit() error {
+	err := w.sstableBlockIndexWriter.FlushCurrentBlock()
+
+	if err != nil {
+		return err
+	}
+
+	err = w.sstableBlockIndexWriter.Commit()
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

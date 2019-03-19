@@ -3,6 +3,7 @@ package sstable
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/zl14917/MastersProject/pkg/kvstore/blockstore"
 	"io"
@@ -19,13 +20,14 @@ const (
 	IndexFileMagic uint32 = 0x32323232
 )
 
-type IndexKeyFlag uint32
-
 const (
-	SSTableIndexKeyInsert IndexKeyFlag = 1 << iota
+	SSTableIndexKeyInsert IndexKeyFlags = 1 << iota
 	SSTableIndexKeyDelete
 )
 
+var InvalidHeaderMagicErr = errors.New("first 32-bit magic of file is wrong")
+
+type IndexKeyFlags uint32
 type IndexFileFlags uint32
 
 type SSTableIndexFileHeader struct {
@@ -52,7 +54,7 @@ type SSTableIndexBlock struct {
 }
 
 type SSTableIndexEntry struct {
-	Flags          IndexKeyFlag
+	Flags          IndexKeyFlags
 	KeyLen         uint32
 	DataFileOffSet uint64
 	LargeKey       []byte
@@ -107,7 +109,52 @@ func (header *SSTableIndexFileHeader) Marshall(writer io.Writer) error {
 }
 
 func (header *SSTableIndexFileHeader) UnMarshall(reader io.Reader) error {
+	var (
+		smallbuffer [4]byte
+		uint32buf   = smallbuffer[0:4]
+	)
 
+	_, err := reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	header.Magic = binary.BigEndian.Uint32(uint32buf)
+	if header.Magic != IndexFileMagic {
+		return InvalidHeaderMagicErr
+	}
+
+	_, err = reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	header.Flags = IndexFileFlags(binary.BigEndian.Uint32(uint32buf))
+
+	_, err = reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	header.KeyCount = binary.BigEndian.Uint32(uint32buf)
+
+	_, err = reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	header.BlockSize = binary.BigEndian.Uint32(uint32buf)
+
+	_, err = reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	header.BlockCount = binary.BigEndian.Uint32(uint32buf)
+
+	_, err = reader.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	header.MaxKeySize = binary.BigEndian.Uint32(uint32buf)
+
+	return nil
 }
 
 func (e *SSTableIndexEntry) Marshall(buffer io.Writer) (nbytes int, err error) {
@@ -182,7 +229,7 @@ func (e *SSTableIndexEntry) UnMarshall(buffer *bytes.Buffer) error {
 		return err
 	}
 
-	e.Flags = IndexKeyFlag(binary.BigEndian.Uint32(uint32buffer))
+	e.Flags = IndexKeyFlags(binary.BigEndian.Uint32(uint32buffer))
 
 	_, err = buffer.Read(uint32buffer)
 	if err != nil {
@@ -215,7 +262,7 @@ func validateBlockSize(blockSize uint32) bool {
 	return blockSize%BaseBlockSize == 0
 }
 
-func NewSSTableIndexFile(path string, maxKeySize uint32, keyBlockSize uint32) (SSTableIndexFile, error) {
+func NewSSTableIndexFile(keyBlockSize uint32) (SSTableIndexFile, error) {
 
 	if !validateBlockSize(keyBlockSize) {
 		return SSTableIndexFile{},
@@ -226,12 +273,11 @@ func NewSSTableIndexFile(path string, maxKeySize uint32, keyBlockSize uint32) (S
 	}
 
 	indexFile := SSTableIndexFile{
-		Path: path,
 
 		SSTableIndexFileHeader: SSTableIndexFileHeader{
 			Magic:      IndexFileMagic,
 			Flags:      IndexFileFlags(HeaderUninitialized),
-			MaxKeySize: maxKeySize,
+			MaxKeySize: uint32(MaxKeySizeFitInBlocK(int(keyBlockSize))),
 			BlockSize:  keyBlockSize,
 			KeyCount:   HeaderUninitialized,
 			BlockCount: HeaderUninitialized,
