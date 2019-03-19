@@ -26,6 +26,7 @@ const (
 )
 
 var InvalidHeaderMagicErr = errors.New("first 32-bit magic of file is wrong")
+var IndexBlockEmptyErr = errors.New("empty index block, keyCount == 0")
 
 type IndexKeyFlags uint32
 type IndexFileFlags uint32
@@ -37,6 +38,15 @@ type SSTableIndexFileHeader struct {
 	BlockSize  uint32
 	BlockCount uint32
 	MaxKeySize uint32
+}
+
+var UnitialzedSSTableIndexFileHeader = SSTableIndexFileHeader{
+	Magic:      IndexFileMagic,
+	Flags:      IndexFileFlags(HeaderUninitialized),
+	MaxKeySize: HeaderUninitialized,
+	BlockSize:  HeaderUninitialized,
+	KeyCount:   HeaderUninitialized,
+	BlockCount: HeaderUninitialized,
 }
 
 type SSTableIndexFile struct {
@@ -51,6 +61,21 @@ type SSTableIndexFile struct {
 
 type SSTableIndexBlock struct {
 	KeyCount uint32
+}
+
+func (b *SSTableIndexBlock) UnMarshall(r io.Reader) error {
+	var (
+		uint32bytes [4]byte
+		uint32buf   = uint32bytes[0:4]
+	)
+
+	_, err := r.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	b.KeyCount = binary.BigEndian.Uint32(uint32buf)
+	return nil
 }
 
 type SSTableIndexEntry struct {
@@ -274,14 +299,7 @@ func NewSSTableIndexFile(keyBlockSize uint32) (SSTableIndexFile, error) {
 
 	indexFile := SSTableIndexFile{
 
-		SSTableIndexFileHeader: SSTableIndexFileHeader{
-			Magic:      IndexFileMagic,
-			Flags:      IndexFileFlags(HeaderUninitialized),
-			MaxKeySize: uint32(MaxKeySizeFitInBlocK(int(keyBlockSize))),
-			BlockSize:  keyBlockSize,
-			KeyCount:   HeaderUninitialized,
-			BlockCount: HeaderUninitialized,
-		},
+		SSTableIndexFileHeader: UnitialzedSSTableIndexFileHeader,
 
 		IndexBlocks: make([]SSTableIndexBlock, 0, 8),
 
