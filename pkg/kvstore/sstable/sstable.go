@@ -360,6 +360,7 @@ type sstableDataWriter struct {
 	Storage      blockstore.BlockStorage
 	BlockSize    int
 	MaxValueSize int
+	recordCount  int
 
 	recordWriteBuffer *bytes.Buffer
 	header            SSTableDataFileHeader
@@ -374,11 +375,12 @@ func (writer *sstableDataWriter) WriteValue(value types.ValueType) (index blocks
 		ValueLen: uint32(len(value)),
 		Value:    value,
 	}
-	
+
 	err = record.Marshall(writer.recordWriteBuffer)
 	if err != nil {
 		return
 	}
+
 	_, err = writer.Storage.Write(value)
 
 	if err != nil {
@@ -389,6 +391,8 @@ func (writer *sstableDataWriter) WriteValue(value types.ValueType) (index blocks
 	if beforePosition.Block == afterPosition.Block {
 		return beforePosition, nil
 	}
+	writer.recordCount++
+
 	return blockstore.Position{
 		Block:  afterPosition.Block,
 		Offset: 0,
@@ -407,8 +411,32 @@ func newSStableDataWriter(storage blockstore.BlockStorage) sstableDataWriter {
 	}
 }
 
-func (writer *sstableDataWriter) Commit() error {
-	return writer.Storage.Sync()
+func (w *sstableDataWriter) WriteHeader() error {
+	w.recordWriteBuffer.Reset()
+	err := w.header.Marshall(w.recordWriteBuffer)
+
+	if err != nil {
+		return err
+	}
+	_, err = w.Storage.WriteBlock(0, w.recordWriteBuffer)
+
+	return err
+}
+
+func (w *sstableDataWriter) Commit() error {
+
+	header := &w.header
+
+	header.BlockCount = uint32(w.Storage.NumBlocks())
+	header.BlockSize = uint32(w.BlockSize)
+	header.ValuesCount = uint32(w.recordCount)
+
+	err := w.WriteHeader()
+	if err != nil {
+		return err
+	}
+
+	return w.Storage.Sync()
 }
 
 type sstableWriterStruct struct {

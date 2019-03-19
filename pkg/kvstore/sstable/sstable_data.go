@@ -16,17 +16,19 @@ const (
 )
 
 type SSTableDataFileHeader struct {
-	Magic      uint32
-	Flags      DataFileFlags
-	BlockSize  uint32
-	BlockCount uint32
+	Magic       uint32
+	Flags       DataFileFlags
+	BlockSize   uint32
+	BlockCount  uint32
+	ValuesCount uint32
 }
 
 var UnitializedSSTableDataFileHeader = SSTableDataFileHeader{
-	Magic:      DataFileMagic,
-	Flags:      DataFileFlags(HeaderUninitialized),
-	BlockSize:  HeaderUninitialized,
-	BlockCount: HeaderUninitialized,
+	Magic:       DataFileMagic,
+	Flags:       DataFileFlags(HeaderUninitialized),
+	BlockSize:   HeaderUninitialized,
+	BlockCount:  HeaderUninitialized,
+	ValuesCount: HeaderUninitialized,
 }
 
 func (h *SSTableDataFileHeader) Marshall(w io.Writer) error {
@@ -55,6 +57,12 @@ func (h *SSTableDataFileHeader) Marshall(w io.Writer) error {
 	}
 
 	binary.BigEndian.PutUint32(uint32buffer, h.BlockCount)
+	_, err = w.Write(uint32buffer)
+	if err != nil {
+		return err
+	}
+
+	binary.BigEndian.PutUint32(uint32buffer, h.ValuesCount)
 	_, err = w.Write(uint32buffer)
 	if err != nil {
 		return err
@@ -97,6 +105,13 @@ func (h *SSTableDataFileHeader) UnMarshall(r io.Reader) error {
 	}
 
 	h.BlockCount = binary.BigEndian.Uint32(uint32buffer)
+
+	_, err = r.Read(uint32buffer)
+	if err != nil {
+		return err
+	}
+
+	h.ValuesCount = binary.BigEndian.Uint32(uint32buffer)
 
 	return nil
 }
