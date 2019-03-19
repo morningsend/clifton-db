@@ -2,6 +2,7 @@ package sstable
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/zl14917/MastersProject/pkg/kvstore/blockstore"
@@ -184,14 +185,11 @@ func (s *SSTable) NewWriter() (SSTableWriter, error) {
 		writeBuffer: indexWriteBuffer,
 
 		sstableDataWriter: newSStableDataWriter(
-			s.indexStorage,
+			s.dataStorage,
 			s.DataStoreBlockSize,
 		),
-		sstableBlockIndexWriter: newIndexWriter(
-			s.dataStorage,
-			s.IndexStorageBlockSize,
-			s.MaxKeySize,
-		),
+
+		sstableBlockIndexWriter: newIndexWriter(s.indexStorage),
 	}
 
 	return writer, nil
@@ -244,35 +242,85 @@ func (s *SSTable) PermanentlyRemove() error {
 }
 
 type sstableBlockIndexWriter struct {
-	FilePath   string
-	Storage    blockstore.BlockStorage
-	BlockSize  int
-	buffer     *bytes.Buffer
-	MaxKeySize int
+	Storage   blockstore.BlockStorage
+	BlockSize int
+
+	currentBlockIndex uint
+	blockKeyCount     uint
+	MaxKeySize        int
+	fileMetaData      SSTableIndexFile
+
+	entryMarshallBuffer *bytes.Buffer
+	blockBuffer         *bytes.Buffer
 }
 
-func (writer *sstableBlockIndexWriter) writeIndex(key types.KeyType, deleted bool, position blockstore.Position) error {
+func newIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
+	return sstableBlockIndexWriter{
+		Storage:             storage,
+		BlockSize:           storage.BlockSize(),
+		MaxKeySize:          MaxKeySizeFitInBlocK(storage.BlockSize()),
+		blockBuffer:         bytes.NewBuffer(nil),
+		entryMarshallBuffer: bytes.NewBuffer(nil),
+
+		currentBlockIndex: 1,
+	}
+}
+
+func (writer *sstableBlockIndexWriter) WriteIndex(key types.KeyType, deleted bool, position blockstore.Position) error {
+
+	if len(key) > writer.MaxKeySize {
+		return fmt.Errorf("can't write key: %v, Key Size : %d", KeyTooLarge, len(key))
+	}
+
 	flags := SSTableIndexKeyInsert
 
 	if deleted {
 		flags = SSTableIndexKeyDelete
+		position = blockstore.UninitializedPosition
 	}
 
 	entry := SSTableIndexEntry{
-		Flags:  uint32(flags),
-		KeyLen: uint32(len(key)),
+		Flags:          flags,
+		KeyLen:         uint32(len(key)),
+		DataFileOffSet: position.EncodeUint64(),
+		LargeKey:       key,
+	}
+	fmt.Printf("%v", entry)
+	writer.entryMarshallBuffer.Reset()
+
+	n, err := entry.Marshall(writer.entryMarshallBuffer)
+
+	if err != nil {
+		return err
 	}
 
+	serializedBytes := writer.entryMarshallBuffer.Bytes()
+	serializedBytes = serializedBytes[0:n]
+
+	if writer.blockBuffer.Len()+n <= writer.BlockSize {
+		err = writer.FlushCurrentBlock()
+		if err != nil {
+			return err
+		}
+	}
+
+	writer.blockKeyCount++
+	writer.blockBuffer.Write(serializedBytes)
 
 	return nil
 }
 
-func newIndexWriter(storage blockstore.BlockStorage, blockSize int, maxKeySize int) sstableBlockIndexWriter {
-	return sstableBlockIndexWriter{
-		Storage:    storage,
-		BlockSize:  blockSize,
-		MaxKeySize: maxKeySize,
+func (writer *sstableBlockIndexWriter) FlushCurrentBlock() error {
+	bytes := writer.blockBuffer.Bytes()
+	binary.BigEndian.PutUint32(bytes[0:4], uint32(writer.blockKeyCount))
+	_, err := writer.Storage.WriteBlock(1, writer.blockBuffer)
+	if err != nil {
+		return err
 	}
+	writer.blockKeyCount = 0
+	writer.blockBuffer.Reset()
+
+	return nil
 }
 
 type sstableDataWriter struct {
@@ -330,7 +378,7 @@ func (w *sstableWriterStruct) Write(key types.KeyType, value types.ValueType, de
 		return err
 	}
 
-	err = w.writeIndex(key, deleted, position)
+	err = w.WriteIndex(key, deleted, position)
 
 	return err
 }

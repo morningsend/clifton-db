@@ -35,6 +35,15 @@ type Position struct {
 	Offset int
 }
 
+func (p *Position) EncodeUint64() uint64 {
+	return uint64(p.Block<<32) + uint64(p.Offset)
+}
+
+func (p *Position) DecodeUint64(x uint64) {
+	p.Block = int(x >> 32)
+	p.Offset = int(x | 0xffffffff)
+}
+
 var UninitializedPosition = Position{
 	-1, -1,
 }

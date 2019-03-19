@@ -18,6 +18,6 @@ type SSTableReader interface {
 	FindRecord(key types.KeyType) (value types.ValueType, deleted bool, ok bool, err error)
 }
 
-func NextMultipleOf4(n int) int {
-	return (n + 3) & 0x03
+func NextMultipleOf4Uint(n uint) uint {
+	return (n + 3) &^ uint(0x03)
 }

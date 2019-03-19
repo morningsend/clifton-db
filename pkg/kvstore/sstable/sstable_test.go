@@ -1,6 +1,7 @@
 package sstable
 
 import (
+	"github.com/zl14917/MastersProject/pkg/kvstore/blockstore"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -44,4 +45,19 @@ func TestNewSSTable(t *testing.T) {
 		}
 
 	})
+}
+
+func TestSSTableBlockIndexWriter(t *testing.T) {
+	const blocksize = 4096
+	var (
+		storage  = blockstore.NewInMemBlockStorage(blocksize)
+		key      = []byte("greetings.message")
+		position = blockstore.Position{}
+	)
+	indexWriter := newIndexWriter(storage, blocksize, MaxKeySizeFitInBlocK(blocksize))
+
+	err := indexWriter.WriteIndex(key, false, position)
+	if err != nil {
+		t.Errorf("error writing index key: %s", string(key))
+	}
 }
