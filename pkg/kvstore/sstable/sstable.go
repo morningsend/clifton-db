@@ -416,6 +416,9 @@ type sstableDataWriter struct {
 
 func (writer *sstableDataWriter) WriteValue(value types.ValueType) (index blockstore.Position, err error) {
 
+	if len(value) > writer.MaxValueSize {
+		return blockstore.UninitializedPosition, ValueTooLarge
+	}
 	beforePosition := writer.Storage.WritePosition()
 
 	writer.recordWriteBuffer.Reset()
@@ -432,7 +435,7 @@ func (writer *sstableDataWriter) WriteValue(value types.ValueType) (index blocks
 	_, err = writer.Storage.Write(value)
 
 	if err != nil {
-		return blockstore.Position{}, err
+		return blockstore.UninitializedPosition, err
 	}
 	afterPosition := writer.Storage.WritePosition()
 
