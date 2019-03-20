@@ -786,5 +786,27 @@ func (r *sstableReaderStruct) ReadNext() (key types.KeyType, value types.ValueTy
 }
 
 func (r *sstableReaderStruct) FindRecord(key types.KeyType) (value types.ValueType, deleted bool, ok bool, err error) {
-	return
+	entry, ok, err := r.indexReader.FindIndexForKey(key)
+	// error
+	if err != nil {
+		return nil, false, false, err
+	}
+	// not found
+	if ! ok || entry == nil {
+		return nil, false, false, nil
+	}
+
+	if entry.Flags == SSTableIndexKeyDelete {
+		return nil, true, true, nil
+	}
+
+	pos := blockstore.Position{}
+	pos.DecodeUint64(entry.DataFileOffSet)
+
+	value, err = r.dataReader.ReadValueAt(pos)
+	if err != nil {
+		return nil, false, true, err
+	}
+
+	return value, false, true, nil
 }
