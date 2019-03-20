@@ -171,8 +171,8 @@ func (s *SSTable) NewReader() (SSTableReader, error) {
 	}
 
 	reader := &sstableReaderStruct{
-		IndexStorage: s.indexStorage,
-		DataStorage:  s.dataStorage,
+		indexReader: newSSTableIndexReader(s.indexStorage),
+		dataReader:  newSSTableDataReader(s.dataStorage),
 	}
 
 	return reader, nil
@@ -182,7 +182,7 @@ func (s *SSTable) NewWriter() (SSTableWriter, error) {
 
 	writer := &sstableWriterStruct{
 		sstableDataWriter:       newSStableDataWriter(s.dataStorage),
-		sstableBlockIndexWriter: newIndexWriter(s.indexStorage),
+		sstableBlockIndexWriter: newSSTableIndexWriter(s.indexStorage),
 	}
 
 	err := writer.sstableDataWriter.WriteHeader()
@@ -261,7 +261,7 @@ type sstableBlockIndexWriter struct {
 	header SSTableIndexFileHeader
 }
 
-func newIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
+func newSSTableIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
 	return sstableBlockIndexWriter{
 		Storage:             storage,
 		BlockSize:           storage.BlockSize(),
@@ -274,8 +274,15 @@ func newIndexWriter(storage blockstore.BlockStorage) sstableBlockIndexWriter {
 }
 
 func (w *sstableBlockIndexWriter) WriteHeader() error {
+	var err error
+
+	_, err = w.Storage.Allocate(1)
+	if err != nil {
+		return err
+	}
+
 	buffer := bytes.NewBuffer(nil)
-	err := w.header.Marshall(buffer)
+	err = w.header.Marshall(buffer)
 
 	if err != nil {
 		return err
@@ -291,6 +298,10 @@ func (w *sstableBlockIndexWriter) WriteHeader() error {
 }
 
 func (w *sstableBlockIndexWriter) Commit() error {
+	err := w.FlushCurrentBlock()
+	if err != nil {
+		return err
+	}
 
 	w.header.Magic = IndexFileMagic
 	w.header.MaxKeySize = uint32(w.MaxKeySize)
@@ -299,7 +310,7 @@ func (w *sstableBlockIndexWriter) Commit() error {
 	w.header.BlockCount = uint32(w.currentBlockIndex - 1)
 	w.header.KeyCount = uint32(w.keyCount)
 
-	err := w.WriteHeader()
+	err = w.WriteHeader()
 
 	if err != nil {
 		return err
@@ -328,19 +339,25 @@ func (writer *sstableBlockIndexWriter) WriteIndex(key types.KeyType, deleted boo
 		DataFileOffSet: position.EncodeUint64(),
 		LargeKey:       key,
 	}
+
 	fmt.Printf("%v", entry)
 	writer.entryMarshallBuffer.Reset()
+	if writer.blockKeyCount == 0 {
+		writer.entryMarshallBuffer.WriteByte(0x7f)
+		writer.entryMarshallBuffer.WriteByte(0x7f)
+		writer.entryMarshallBuffer.WriteByte(0x7f)
+		writer.entryMarshallBuffer.WriteByte(0x7f)
+	}
 
-	n, err := entry.Marshall(writer.entryMarshallBuffer)
+	_, err := entry.Marshall(writer.entryMarshallBuffer)
 
 	if err != nil {
 		return err
 	}
 
 	serializedBytes := writer.entryMarshallBuffer.Bytes()
-	serializedBytes = serializedBytes[0:n]
 
-	if writer.blockBuffer.Len()+n <= writer.BlockSize {
+	if writer.blockBuffer.Len()+len(serializedBytes) >= writer.BlockSize {
 		err = writer.FlushCurrentBlock()
 		if err != nil {
 			return err
@@ -359,6 +376,8 @@ func (writer *sstableBlockIndexWriter) WriteIndex(key types.KeyType, deleted boo
 }
 
 func (writer *sstableBlockIndexWriter) FlushCurrentBlock() error {
+	var err error
+
 	bs := writer.blockBuffer.Bytes()
 
 	if len(bs) < 1 {
@@ -366,7 +385,13 @@ func (writer *sstableBlockIndexWriter) FlushCurrentBlock() error {
 	}
 
 	binary.BigEndian.PutUint32(bs[0:4], uint32(writer.blockKeyCount))
-	_, err := writer.Storage.WriteBlock(writer.currentBlockIndex, writer.blockBuffer)
+	_, err = writer.Storage.Allocate(int(writer.currentBlockIndex + 1))
+
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Storage.WriteBlock(writer.currentBlockIndex, writer.blockBuffer)
 
 	if err != nil {
 		return err
@@ -424,7 +449,7 @@ func (writer *sstableDataWriter) WriteValue(value types.ValueType) (index blocks
 func newSStableDataWriter(storage blockstore.BlockStorage) sstableDataWriter {
 	blockSize := storage.BlockSize()
 
-	writer := &sstableDataWriter{
+	writer := sstableDataWriter{
 		Storage:      storage,
 		BlockSize:    blockSize,
 		MaxValueSize: MaxValueSizeFitInBlock(blockSize),
@@ -618,7 +643,6 @@ func (r *sstableIndexReader) getFirstEntryOfBlock(n uint) (entry *SSTableIndexEn
 func (r *sstableIndexReader) FindIndexForKey(key types.KeyType) (entry *SSTableIndexEntry, ok bool, err error) {
 	// binary search
 	var (
-		block uint
 		mid   uint
 		left  uint = 1
 		right uint = uint(r.header.BlockCount)
@@ -649,13 +673,13 @@ func (r *sstableIndexReader) FindIndexForKey(key types.KeyType) (entry *SSTableI
 			return nil, false, err
 		}
 
-		if bytes.Compare(entry.LargeKey, key) < 0 {
+		if bytes.Compare(entry.LargeKey, key) <= 0 {
 			return r.searchForKeyInBlock(key, left)
 		} else {
 			return nil, false, nil
 		}
-
 	}
+
 	return nil, false, nil
 }
 
@@ -674,6 +698,7 @@ func (r *sstableIndexReader) searchForKeyInBlock(key types.KeyType, block uint) 
 		return nil, false, err
 	}
 	entry = &SSTableIndexEntry{}
+
 	var i uint32 = 0
 	for ; i < indexBlock.KeyCount; i++ {
 		err = entry.UnMarshall(r.buffer)
@@ -685,7 +710,7 @@ func (r *sstableIndexReader) searchForKeyInBlock(key types.KeyType, block uint) 
 			return nil, false, err
 		}
 
-		cmp := bytes.Compare(key, entry.LargeKey)
+		cmp := bytes.Compare(entry.LargeKey, key)
 		if cmp == 0 {
 			return entry, true, nil
 		} else if cmp > 0 {
@@ -725,8 +750,27 @@ func (r *sstableDataReader) ReaderHeader() error {
 }
 
 // random access read
-func (r *sstableDataReader) ReadValueAt(postion blockstore.Position) (types.ValueType, error) {
-	return nil, nil
+func (r *sstableDataReader) ReadValueAt(position blockstore.Position) (types.ValueType, error) {
+	r.buffer.Reset()
+	n, err := r.storage.ReadBlock(uint(position.Block), r.buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	if n <= position.Offset {
+		return nil, io.EOF
+	}
+
+	r.buffer.Next(position.Offset)
+
+	record := &SSTableDataRecord{}
+	err = record.UnMarshall(r.buffer)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return record.Value, nil
 }
 
 type sstableReaderStruct struct {

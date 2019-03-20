@@ -157,7 +157,7 @@ func (b *InMemBlockStorage) Sync() error {
 // Read block into a buffer
 //
 func (b *InMemBlockStorage) ReadBlock(index uint, buffer *bytes.Buffer) (n int, err error) {
-	if b.blockLen > int(index) {
+	if b.blockLen-1 < int(index) {
 		return 0, io.EOF
 	}
 

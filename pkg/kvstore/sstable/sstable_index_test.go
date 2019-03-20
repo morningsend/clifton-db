@@ -50,4 +50,8 @@ func TestSSTableIndexEntry_Marshall(t *testing.T) {
 	if !reflect.DeepEqual(unmarshalledEntry, entry) {
 		t.Error("marshalled entry does not equal to original value.")
 	}
+
+	if bytes.Compare(unmarshalledEntry.LargeKey, entry.LargeKey) != 0 {
+		t.Error("marshalled/unmarshalled key should be identical bytes")
+	}
 }

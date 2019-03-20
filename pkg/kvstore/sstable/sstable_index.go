@@ -268,10 +268,11 @@ func (e *SSTableIndexEntry) UnMarshall(buffer *bytes.Buffer) error {
 	}
 
 	e.DataFileOffSet = binary.BigEndian.Uint64(uint64buffer)
+
 	paddedKeySize := NextMultipleOf4Uint(uint(e.KeyLen))
 	e.LargeKey = make([]byte, paddedKeySize, paddedKeySize)
 	n, err := buffer.Read(e.LargeKey)
-
+	e.LargeKey = e.LargeKey[0:e.KeyLen]
 	if err != nil {
 		return err
 	}
