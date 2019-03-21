@@ -98,7 +98,6 @@ func TestWALSeg_Archive(t *testing.T) {
 
 func TestWALSeg_Append(t *testing.T) {
 	WithTempDir(t, func(t *testing.T, dirPath string) {
-
 		segPath := path.Join(dirPath, "segment_00001")
 
 		const startIndex uint64 = 100
@@ -125,5 +124,29 @@ func TestWALSeg_Append(t *testing.T) {
 			t.Error("appending record should set record index")
 		}
 
+	})
+}
+
+func TestSegmentReader(t *testing.T) {
+	WithTempDir(t, func(t *testing.T, dirPath string) {
+		record := &WALRecord{}
+
+		segmentPath := path.Join(dirPath, "segment_0001")
+
+		seg, err := NewWALSegment(segmentPath, 1, 0, 1, false)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		reader, err := seg.NewReader()
+		if err != nil {
+			t.Errorf("error opening reader: %v", err)
+		}
+
+		err = reader.Read(record)
+		if err != nil {
+
+		}
 	})
 }

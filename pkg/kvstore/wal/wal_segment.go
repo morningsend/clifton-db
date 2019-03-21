@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -18,6 +19,8 @@ const (
 	WALSegOngoingFlag WALSegFlag = 1 << iota
 	WALSegArchivedFlag
 	WalSegCompressedFlag
+
+	WALRecordHeaderSize = unsafe.Sizeof(WALRecordHeader{})
 )
 
 type WALSegHeader struct {
@@ -27,6 +30,30 @@ type WALSegHeader struct {
 	Flags     WALSegFlag
 
 	StartRecordIndex uint64
+}
+
+func (s *WALSegHeader) EncodeToBytes(buffer []byte) {
+	binary.BigEndian.PutUint32(buffer[0:4], s.Magic)
+	binary.BigEndian.PutUint32(buffer[4:8], s.SegId)
+	binary.BigEndian.PutUint32(buffer[8:12], s.PrevSegId)
+	binary.BigEndian.PutUint32(buffer[12:16], uint32(s.Flags))
+	binary.BigEndian.PutUint64(buffer[16:24], s.StartRecordIndex)
+}
+
+func (s *WALSegHeader) DecodeFromBytes(buffer []byte) {
+	s.Magic = binary.BigEndian.Uint32(buffer[0:4])
+	s.SegId = binary.BigEndian.Uint32(buffer[4:8])
+	s.PrevSegId = binary.BigEndian.Uint32(buffer[8:12])
+	s.Flags = WALSegFlag(binary.BigEndian.Uint32(buffer[12:16]))
+	s.StartRecordIndex = binary.BigEndian.Uint64(buffer[16:24])
+}
+
+func (s *WALSegHeader) Marshall(writer io.Writer) error {
+	return nil
+}
+
+func (s *WALSegHeader) UnMarshall(reader io.Reader) error {
+	return nil
 }
 
 type WALSeg struct {
@@ -44,16 +71,8 @@ type WALSeg struct {
 
 type WALRecordReader interface {
 	// passes result to WALRecord pointer, avoids allocation
-	Read(record *WALRecord) error
+	Read() (record *WALRecord, err error)
 	Close() error
-}
-
-type WALSegRecordReader struct {
-	FilePath string
-	file     *os.File
-
-	readBuffer   *bytes.Buffer
-	currentIndex uint64
 }
 
 func (s *WALSeg) Sync() error {
@@ -70,25 +89,24 @@ func (s *WALSeg) Append(record *WALRecord) error {
 		return nil
 	}
 
-	record.Index = s.NextRecordIndex()
-	s.writeBuffer.Reset()
-	record.Marshall(s.writeBuffer)
-
 	var (
-		n            int
-		err          error
-		recordBytes  = s.writeBuffer.Bytes()
-		bytesWritten = 0
-		sizeToWrite  = s.writeBuffer.Len()
+		err error
 	)
 
-	for bytesWritten < sizeToWrite {
-		n, err = s.logFile.Write(recordBytes)
-		recordBytes = recordBytes[n:]
-		bytesWritten += n
-		if err != nil {
-			return err
-		}
+	record.Index = s.NextRecordIndex()
+	s.writeBuffer.Reset()
+	err = record.Marshall(s.writeBuffer)
+
+	if err != nil {
+		return err
+	}
+
+	recordBytes := s.writeBuffer.Bytes()
+
+	_, err = s.logFile.Write(recordBytes)
+
+	if err != nil {
+		return err
 	}
 
 	s.nextRecordIndex = record.Index + 1
@@ -273,22 +291,6 @@ func (s *WALSeg) SetReadIndex(logIndex uint64) error {
 	return nil
 }
 
-func (s *WALSegHeader) EncodeToBytes(buffer []byte) {
-	binary.BigEndian.PutUint32(buffer[0:4], s.Magic)
-	binary.BigEndian.PutUint32(buffer[4:8], s.SegId)
-	binary.BigEndian.PutUint32(buffer[8:12], s.PrevSegId)
-	binary.BigEndian.PutUint32(buffer[12:16], uint32(s.Flags))
-	binary.BigEndian.PutUint64(buffer[16:24], s.StartRecordIndex)
-}
-
-func (s *WALSegHeader) DecodeFromBytes(buffer []byte) {
-	s.Magic = binary.BigEndian.Uint32(buffer[0:4])
-	s.SegId = binary.BigEndian.Uint32(buffer[4:8])
-	s.PrevSegId = binary.BigEndian.Uint32(buffer[8:12])
-	s.Flags = WALSegFlag(binary.BigEndian.Uint32(buffer[12:16]))
-	s.StartRecordIndex = binary.BigEndian.Uint64(buffer[16:24])
-}
-
 func (s *WALSeg) openForHeaderWriting() error {
 	var err error
 	if s.file == nil {
@@ -338,16 +340,39 @@ func (s *WALSeg) NextRecordIndex() uint64 {
 	return s.nextRecordIndex
 }
 
+type WALSegRecordReader struct {
+	FilePath string
+	file     *os.File
+
+	bufReader    *bufio.Reader
+	currentIndex uint64
+
+	recordTemp WALRecord
+
+	fileHeader WALSegHeader
+}
+
 func (s *WALSeg) NewReader() (WALRecordReader, error) {
+	return newWALSegRecordReader(s.FilePath)
+}
+
+func newWALSegRecordReader(filePath string) (WALRecordReader, error) {
 	reader := &WALSegRecordReader{
-		FilePath:   s.FilePath,
-		file:       nil,
-		readBuffer: bytes.NewBuffer(nil),
+		FilePath: filePath,
+		file:     nil,
 	}
 
+	err := reader.openForReading()
+	if err != nil {
+		return nil, err
+	}
 	return reader, nil
 }
 
+func (r *WALSegRecordReader) ReadFileHeader() error {
+
+	return nil
+}
 func (r *WALSegRecordReader) openForReading() error {
 	var err error
 	r.file, err = os.OpenFile(
@@ -360,13 +385,14 @@ func (r *WALSegRecordReader) openForReading() error {
 		r.file = nil
 		return nil
 	}
+	r.bufReader = bufio.NewReader(r.file)
 
 	return nil
 }
 
-func (r *WALSegRecordReader) Read(record *WALRecord) error {
+func (r *WALSegRecordReader) Read() (record *WALRecord, err error) {
 
-	return nil
+	return &r.recordTemp, nil
 }
 
 func (r *WALSegRecordReader) Close() error {

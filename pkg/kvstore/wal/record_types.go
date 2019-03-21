@@ -1,9 +1,8 @@
 package wal
 
 import (
-	"bytes"
+	"encoding/binary"
 	"io"
-	"unsafe"
 )
 
 type WALEventType uint32
@@ -13,23 +12,16 @@ const (
 	DeleteKey
 )
 
-type WALEventHeader struct {
-	EventType WALEventType
-	KeyLen    uint32
-	ValueLen  uint32
-}
-
 // Redo logging
 type WALEvent struct {
-	WALEventHeader
-	KeyData   []byte
-	ValueData []byte
+	EventData []byte
 }
 
 type WALRecordHeader struct {
-	Index uint64
-	CRC   uint32
-	Len   uint32
+	Index     uint64
+	CRC       uint32
+	DataLen   uint32
+	EventType WALEventType
 }
 
 type WALRecord struct {
@@ -37,29 +29,108 @@ type WALRecord struct {
 	WALEvent
 }
 
-func (event *WALEvent) Marshall(writer io.Writer) {
-	//intBytes := make([]byte, 0, 4)
+func (header *WALRecordHeader) Marshall(writer io.Writer) error {
+	var (
+		err          error
+		buffer8Bytes [8]byte
+		uint64buf    = buffer8Bytes[0:8]
+		uint32buf    = buffer8Bytes[0:4]
+	)
 
+	binary.BigEndian.PutUint64(uint64buf, header.Index)
+	_, err = writer.Write(uint64buf)
+	if err != nil {
+		return err
+	}
+
+	binary.BigEndian.PutUint32(uint32buf, header.CRC)
+	_, err = writer.Write(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	binary.BigEndian.PutUint32(uint32buf, header.DataLen)
+	_, err = writer.Write(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	binary.BigEndian.PutUint32(uint32buf, uint32(header.EventType))
+	_, err = writer.Write(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (header *WALRecordHeader) Marshall(buffer *bytes.Buffer) {
+func (h *WALRecordHeader) UnMarshall(r io.Reader) error {
+	var (
+		err         error
+		buffer8Byte [8]byte
+		uint32buf   = buffer8Byte[0:4]
+		uint64buf   = buffer8Byte[0:8]
+	)
 
+	_, err = r.Read(uint64buf)
+	if err != nil {
+		return err
+	}
+
+	h.Index = binary.BigEndian.Uint64(uint64buf)
+
+	_, err = r.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	h.CRC = binary.BigEndian.Uint32(uint32buf)
+
+	_, err = r.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+	h.DataLen = binary.BigEndian.Uint32(uint32buf)
+
+	_, err = r.Read(uint32buf)
+	if err != nil {
+		return err
+	}
+
+	h.EventType = WALEventType(binary.BigEndian.Uint32(uint32buf))
+	return nil
 }
 
-func (r *WALRecord) Marshall(buffer *bytes.Buffer) {
-	r.WALRecordHeader.Marshall(buffer)
+func (r *WALRecord) Marshall(writer io.Writer) error {
+	var err error
+
+	err = r.WALRecordHeader.Marshall(writer)
+	if err != nil {
+		return err
+	}
+
+	padToMultiple4 := 0
+	_, err = writer.Write(r.EventData)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (r *WALRecord) SetPayload(eventType WALEventType, key []byte, value []byte) {
-	r.EventType = eventType
-	r.KeyLen = uint32(len(key))
-	r.KeyData = key
-	r.ValueData = value
-	r.ValueLen = uint32(len(value))
-	r.Len = r.KeyLen + r.ValueLen + 2*uint32(unsafe.Sizeof(r.ValueLen))
-}
-
-func ComputeWALRecordCRC(data []byte, len int) int32 {
-
+func ComputeWALRecordCRC(data []byte) uint32 {
 	return 0
+}
+
+func (w *WALRecord) VerifyCRC() bool {
+	crc := ComputeWALRecordCRC(w.EventData)
+	return w.CRC == crc
+}
+
+func (w *WALRecord) ComputeCRC() {
+	if len(w.EventData) == 0 {
+		w.CRC = 0
+		return
+	}
+	w.CRC = ComputeWALRecordCRC(w.EventData)
 }
