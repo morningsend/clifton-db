@@ -1,7 +1,7 @@
 package sstable
 
 import (
-	"github.com/zl14917/MastersProject/pkg/kvstore/types"
+	"github.com/zl14917/MastersProject/kvstore/types"
 )
 
 // SSTableWriter assumes that the keys are sorted.

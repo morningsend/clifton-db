@@ -3,7 +3,7 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/zl14917/MastersProject/pkg/kvstore/types"
+	"github.com/zl14917/MastersProject/kvstore/types"
 	"io"
 	"unsafe"
 )

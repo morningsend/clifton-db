@@ -2,7 +2,7 @@ package tables
 
 import (
 	"fmt"
-	"github.com/zl14917/MastersProject/pkg/kvstore/sstable"
+	"github.com/zl14917/MastersProject/kvstore/sstable"
 	"strconv"
 	"sync"
 	"time"
@@ -60,7 +60,6 @@ func NewSSTableRef(level int) *SStableRef {
 		Prefix:         "level_" + strconv.Itoa(level),
 		MaxKeySize:     0,
 		MaxValueSize:   0,
-		BlockSize:      0,
 		IndexBlockSize: int(sstable.BaseBlockSize),
 		LoadExisting:   false,
 		Timestamp:      time.Now().Unix(),

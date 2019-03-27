@@ -3,13 +3,13 @@ package kvclient
 import (
 	"context"
 	"fmt"
-	"github.com/zl14917/MastersProject/kv-client-api"
+	"github.com/zl14917/MastersProject/api/kv-client"
 	"google.golang.org/grpc"
 )
 
 type Client struct {
 	grpcConn      *grpc.ClientConn
-	kvStoreClient kv_client_api.KVStoreClient
+	kvStoreClient kv_client.KVStoreClient
 }
 
 func (c *Client) Connect(host string, port uint32) (err error) {
@@ -21,7 +21,7 @@ func (c *Client) Connect(host string, port uint32) (err error) {
 	}
 
 	c.grpcConn = conn
-	c.kvStoreClient = kv_client_api.NewKVStoreClient(conn)
+	c.kvStoreClient = kv_client.NewKVStoreClient(conn)
 
 	return nil
 }
@@ -33,7 +33,7 @@ func NewClient() *Client {
 func (c *Client) Put(key string, data []byte) (ok bool, err error) {
 	result, err := c.kvStoreClient.Put(
 		context.Background(),
-		&kv_client_api.PutReq{
+		&kv_client.PutReq{
 			Key:   key,
 			Value: data,
 		},
@@ -50,7 +50,7 @@ func (c *Client) Get(key string) (data []byte, err error) {
 
 	value, err := c.kvStoreClient.Get(
 		context.Background(),
-		&kv_client_api.GetReq{
+		&kv_client.GetReq{
 			Key: key,
 		})
 

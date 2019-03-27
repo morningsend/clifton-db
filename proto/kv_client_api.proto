@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package kv_client_api;
+package api.kv_client;
 
 message GetReq {
     string key = 1;

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package api.cluster_manager;
+
+import "google/protobuf/empty.proto";
+
+message NodeId {
+    int32 value = 1;
+}
+
+message NetworkAddress {
+    string ip = 1;
+    int32 port = 2;
+}
+
+message NodeList {
+
+}
+
+message PartitionRanges {
+
+}
+
+message JoinClusterRequest {
+
+}
+
+message JoinClusterResponse {
+
+}
+
+message LeaveClusterRequest {
+
+}
+
+message LeaveClusterResponse {
+
+}
+
+service ClusterManagerApi {
+    rpc GetNodeList (google.protobuf.Empty) returns (NodeList) {
+    }
+    rpc JoinCluster (JoinClusterRequest) returns (JoinClusterResponse) {
+    }
+    rpc LeaveCluster (LeaveClusterRequest) returns (LeaveClusterResponse) {
+    }
+}
+
+service ClusterAgentApi {
+
+}
+

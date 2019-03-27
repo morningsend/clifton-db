@@ -1,9 +1,9 @@
 package tables
 
-import "github.com/zl14917/MastersProject/pkg/kvstore/maps/concurrent"
+import "github.com/zl14917/MastersProject/concurrent/maps"
 
 type ThreadSafeMapMemTable struct {
-	concurrent.ThreadsafeMap
+	maps.ThreadsafeMap
 	MaxKeySize   int
 	MaxValueSize int
 }
@@ -29,8 +29,7 @@ func (m *ThreadSafeMapMemTable) KeyCountEstimate() uint {
 }
 
 func (m *ThreadSafeMapMemTable) Iterator() SortedKVIterator {
-	iter := m.ThreadsafeMap.Iterator()
-
+	return nil
 }
 
 func NewMapMemTable(maxKeySize int, maxValueSize int) MemTable {

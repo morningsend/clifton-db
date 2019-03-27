@@ -2,7 +2,7 @@ package kvserver
 
 import (
 	"context"
-	"github.com/zl14917/MastersProject/kv-client-api"
+	"github.com/zl14917/MastersProject/api/kv-client"
 	"google.golang.org/grpc"
 	"log"
 	"os"
@@ -19,19 +19,19 @@ func NewGrpcKVServer() *GrpcKVServer {
 }
 
 func (s *GrpcKVServer) Register(grpcServer *grpc.Server) {
-	kv_client_api.RegisterKVStoreServer(grpcServer, *s)
+	kv_client.RegisterKVStoreServer(grpcServer, *s)
 }
 
-func (s GrpcKVServer) NewSession(context.Context, *kv_client_api.Client) (*kv_client_api.Session, error) {
-	return &kv_client_api.Session{SessionId: "1234", Nodes: []*kv_client_api.Address{}}, nil
+func (s GrpcKVServer) NewSession(context.Context, *kv_client.Client) (*kv_client.Session, error) {
+	return &kv_client.Session{SessionId: "1234", Nodes: []*kv_client.Address{}}, nil
 }
 
-func (s GrpcKVServer) Get(ctx context.Context, get *kv_client_api.GetReq) (*kv_client_api.Value, error) {
+func (s GrpcKVServer) Get(ctx context.Context, get *kv_client.GetReq) (*kv_client.Value, error) {
 	s.logger.Printf("GET %s\n", get.Key)
-	return &kv_client_api.Value{Key: get.Key, Value: []byte("value is here")}, nil
+	return &kv_client.Value{Key: get.Key, Value: []byte("value is here")}, nil
 }
 
-func (s GrpcKVServer) Put(ctx context.Context, put *kv_client_api.PutReq) (*kv_client_api.PutRes, error) {
+func (s GrpcKVServer) Put(ctx context.Context, put *kv_client.PutReq) (*kv_client.PutRes, error) {
 	s.logger.Printf("PUT %s:%s\n", put.Key, put.Value)
-	return &kv_client_api.PutRes{Success: true}, nil
+	return &kv_client.PutRes{Success: true}, nil
 }

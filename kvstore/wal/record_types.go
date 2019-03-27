@@ -109,7 +109,6 @@ func (r *WALRecord) Marshall(writer io.Writer) error {
 		return err
 	}
 
-	padToMultiple4 := 0
 	_, err = writer.Write(r.EventData)
 	if err != nil {
 		return err

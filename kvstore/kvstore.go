@@ -3,10 +3,10 @@ package kvstore
 import (
 	"context"
 	"fmt"
-	"github.com/zl14917/MastersProject/pkg/kvstore/tables"
-	"github.com/zl14917/MastersProject/pkg/kvstore/types"
-	"github.com/zl14917/MastersProject/pkg/kvstore/wal"
-	"github.com/zl14917/MastersProject/pkg/logger"
+	"github.com/zl14917/MastersProject/kvstore/tables"
+	"github.com/zl14917/MastersProject/kvstore/types"
+	"github.com/zl14917/MastersProject/kvstore/wal"
+	"github.com/zl14917/MastersProject/logger"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
@@ -79,6 +79,10 @@ type CliftonDBKVStore struct {
 	SSTablesRoot        string
 	WALRoot             string
 	KVStoreLockFilePath string
+}
+
+func (s *CliftonDBKVStore) Remove(key types.KeyType) (ok bool, err error) {
+	panic("implement me")
 }
 
 func NewCliftonDBKVStore(dirPath string, logPath string) (*CliftonDBKVStore, error) {

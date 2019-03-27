@@ -1,7 +1,6 @@
 package maps
 
 import (
-	"github.com/zl14917/MastersProject/pkg/kvstore/maps"
 	"sync"
 	"time"
 )
@@ -14,24 +13,24 @@ type mapValue struct {
 
 type ThreadsafeMap struct {
 	sync.RWMutex
-	Map map[maps.Key]mapValue
+	Map map[Key]mapValue
 }
 
 type ThreadsafeMapIterator struct {
-	keys   []maps.Key
-	values []maps.Value
+	keys   []Key
+	values []Value
 
 	currentIndex int
 	len          int
 }
 
-func NewThreadsafeMap() maps.Map {
+func NewThreadsafeMap() Map {
 	return &ThreadsafeMap{
-		Map: make(map[maps.Key]mapValue),
+		Map: make(map[Key]mapValue),
 	}
 }
 
-func (m *ThreadsafeMap) Get(key maps.Key) (value maps.Value, ok bool) {
+func (m *ThreadsafeMap) Get(key Key) (value Value, ok bool) {
 	m.RLock()
 	defer m.RUnlock()
 	readValue, ok := m.Map[key]
@@ -41,7 +40,7 @@ func (m *ThreadsafeMap) Get(key maps.Key) (value maps.Value, ok bool) {
 	return readValue.Data, true
 }
 
-func (m *ThreadsafeMap) Remove(key maps.Key) (value maps.Value, ok bool) {
+func (m *ThreadsafeMap) Remove(key Key) (value Value, ok bool) {
 	m.Lock()
 	defer m.Unlock()
 	writeValue, ok := m.Map[key]
@@ -57,7 +56,7 @@ func (m *ThreadsafeMap) Remove(key maps.Key) (value maps.Value, ok bool) {
 	return value, true
 }
 
-func (m *ThreadsafeMap) Put(key maps.Key, value maps.Value) (err error) {
+func (m *ThreadsafeMap) Put(key Key, value Value) (err error) {
 	m.Lock()
 	defer m.Unlock()
 	m.Map[key] = mapValue{
@@ -67,7 +66,7 @@ func (m *ThreadsafeMap) Put(key maps.Key, value maps.Value) (err error) {
 	return nil
 }
 
-func (m *ThreadsafeMap) Contains(key maps.Key) (ok bool) {
+func (m *ThreadsafeMap) Contains(key Key) (ok bool) {
 	m.RLock()
 	defer m.RUnlock()
 	_, ok = m.Map[key]
@@ -80,13 +79,13 @@ func (m *ThreadsafeMap) Len() int {
 	return len(m.Map)
 }
 
-func (m *ThreadsafeMap) makeSnapshot() (keys []maps.Key, values []maps.Value) {
+func (m *ThreadsafeMap) makeSnapshot() (keys []Key, values []Value) {
 	m.RLock()
 	defer m.RUnlock()
 
 	len := len(m.Map)
-	keys = make([]maps.Key, len, len)
-	values = make([]maps.Value, len, len)
+	keys = make([]Key, len, len)
+	values = make([]Value, len, len)
 	
 	i := 0
 	for k, v := range m.Map {
@@ -97,7 +96,7 @@ func (m *ThreadsafeMap) makeSnapshot() (keys []maps.Key, values []maps.Value) {
 	return
 }
 
-func (m *ThreadsafeMap) Iterator() maps.MapIterator {
+func (m *ThreadsafeMap) Iterator() MapIterator {
 	keys, values := m.makeSnapshot()
 	return &ThreadsafeMapIterator{
 		keys:   keys,
@@ -116,6 +115,6 @@ func (i *ThreadsafeMapIterator) Next() bool {
 	return true
 }
 
-func (i *ThreadsafeMapIterator) Current() (maps.Key, maps.Value) {
+func (i *ThreadsafeMapIterator) Current() (Key, Value) {
 	return i.keys[i.currentIndex], i.values[i.currentIndex]
 }

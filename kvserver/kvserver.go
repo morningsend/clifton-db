@@ -1,8 +1,8 @@
 package kvserver
 
 import (
-	"github.com/zl14917/MastersProject/pkg/kvstore"
-	"github.com/zl14917/MastersProject/pkg/logger"
+	"github.com/zl14917/MastersProject/kvstore"
+	"github.com/zl14917/MastersProject/logger"
 	"github.com/zl14917/MastersProject/router"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"

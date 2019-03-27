@@ -1,8 +1,8 @@
 package tables
 
 import (
-	"github.com/zl14917/MastersProject/pkg/kvstore/maps"
-	"github.com/zl14917/MastersProject/pkg/kvstore/types"
+	"github.com/zl14917/MastersProject/concurrent/maps"
+	"github.com/zl14917/MastersProject/kvstore/types"
 )
 
 type SortedKVIterator interface {

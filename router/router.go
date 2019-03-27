@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/zl14917/MastersProject/pkg/dht"
+	"github.com/zl14917/MastersProject/dht"
 	"google.golang.org/grpc"
 )
 
