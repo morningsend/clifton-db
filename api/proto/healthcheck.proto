@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package kv_client_api;
+package kv_client;
 
 message HealthCheckRequest {
     string service = 1;

@@ -6,9 +6,8 @@ import (
 	"github.com/zl14917/MastersProject/kvstore/tables"
 	"github.com/zl14917/MastersProject/kvstore/types"
 	"github.com/zl14917/MastersProject/kvstore/wal"
-	"github.com/zl14917/MastersProject/logger"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
-	"log"
 	"os"
 	"path"
 	"sync/atomic"
@@ -71,7 +70,7 @@ type CliftonDBKVStore struct {
 	memtable  tables.MemTable
 	wal       *wal.WAL
 
-	logger        logger.Logger
+	logger        *zap.Logger
 	backgroundCtx context.Context
 	prevMemtable  tables.MemTable
 
@@ -116,14 +115,12 @@ func NewCliftonDBKVStore(dirPath string, logPath string) (*CliftonDBKVStore, err
 		return nil, err
 	}
 
-	store.logger, err = logger.NewFileLogger(
-		storeLogFilePath,
-		fmt.Sprintf(logPrefix, data.PartitionId),
-		log.LstdFlags,
-	)
+	config := zap.NewDevelopmentConfig()
+	config.OutputPaths = []string{storeLogFilePath}
+	store.logger, _ = config.Build()
 
 	if err != nil {
-		store.logger = log.New(os.Stdout, fmt.Sprintf(logPrefix, data.PartitionId), log.LstdFlags)
+		store.logger = zap.NewExample()
 	}
 	err = store.walCheckForRecovery()
 
@@ -159,6 +156,10 @@ func (s *CliftonDBKVStore) WriteLockFile(data KVStoreLockFileData) error {
 	file, err := os.OpenFile(s.KVStoreLockFilePath, os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
+		s.logger.Error(
+			"error openinng kv-store lock file",
+			zap.String("file-path", s.KVStoreLockFilePath),
+		)
 		return err
 	}
 
@@ -199,11 +200,12 @@ func (s *CliftonDBKVStore) walCheckForRecovery() error {
 }
 
 func (s *CliftonDBKVStore) rebuildMemTableFromWAL() error {
+
 	return nil
 }
 
 func (s *CliftonDBKVStore) flushMemTable() error {
-	s.logger.Printf("starting to flush memtable")
+	s.logger.Info("starting to flush memtable")
 
 	newMemTable := tables.NewMapMemTable(4000, 4000)
 	s.prevMemtable = s.memtable
@@ -225,15 +227,6 @@ func (s *CliftonDBKVStore) flushMemTable() error {
 
 func (s *CliftonDBKVStore) scheduleCompaction(deadline time.Duration) {
 
-}
-
-func FromDir(dirPath, options KVStoreOpenOptions) KVStore {
-	store := &CliftonDBKVStore{
-		memtable: nil,
-		wal:      nil,
-	}
-
-	return store
 }
 
 func (s *CliftonDBKVStore) Get(key types.KeyType) (data types.ValueType, ok bool, err error) {

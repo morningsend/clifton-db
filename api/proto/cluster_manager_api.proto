@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package api.cluster_manager;
+package cluster_manager;
 
 import "google/protobuf/empty.proto";
 

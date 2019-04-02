@@ -3,35 +3,59 @@ package kvserver
 import (
 	"context"
 	"github.com/zl14917/MastersProject/api/kv-client"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"log"
-	"os"
 )
 
-type GrpcKVServer struct {
-	logger *log.Logger
+type GrpcKVService struct {
+	logger      *zap.Logger
+	requests    chan bool
+	concurrency int
 }
 
-func NewGrpcKVServer() *GrpcKVServer {
-	return &GrpcKVServer{
-		logger: log.New(os.Stdout, "[cliftondb-rpc]", log.LstdFlags),
+func NewGrpcKVService(numConcurrentReq int) kv_client.KVStoreServer {
+	if numConcurrentReq < 1 {
+		numConcurrentReq = 1
+	}
+
+	srv := &GrpcKVService{
+		logger:      zap.NewExample(),
+		requests:    make(chan bool, numConcurrentReq),
+		concurrency: numConcurrentReq,
+	}
+
+	return srv
+}
+
+func (s *GrpcKVService) Register(grpcServer *grpc.Server) {
+	kv_client.RegisterKVStoreServer(grpcServer, s)
+}
+
+func (s GrpcKVService) Get(ctx context.Context, get *kv_client.GetReq) (*kv_client.Value, error) {
+	s.requests <- true
+	defer func() { <-s.requests }()
+
+	s.logger.Info("GET", zap.String("key", get.Key))
+	select {
+	case <-ctx.Done():
+		return nil, nil
+	default:
+		return &kv_client.Value{Key: get.Key, Value: []byte("value is here")}, nil
 	}
 }
 
-func (s *GrpcKVServer) Register(grpcServer *grpc.Server) {
-	kv_client.RegisterKVStoreServer(grpcServer, *s)
-}
+func (s GrpcKVService) Put(ctx context.Context, put *kv_client.PutReq) (*kv_client.PutRes, error) {
+	s.requests <- true
+	defer func() { <-s.requests }()
 
-func (s GrpcKVServer) NewSession(context.Context, *kv_client.Client) (*kv_client.Session, error) {
-	return &kv_client.Session{SessionId: "1234", Nodes: []*kv_client.Address{}}, nil
-}
-
-func (s GrpcKVServer) Get(ctx context.Context, get *kv_client.GetReq) (*kv_client.Value, error) {
-	s.logger.Printf("GET %s\n", get.Key)
-	return &kv_client.Value{Key: get.Key, Value: []byte("value is here")}, nil
-}
-
-func (s GrpcKVServer) Put(ctx context.Context, put *kv_client.PutReq) (*kv_client.PutRes, error) {
-	s.logger.Printf("PUT %s:%s\n", put.Key, put.Value)
+	s.logger.Info("PUT", zap.String("key", put.Key), zap.String("value", string(put.Value)))
 	return &kv_client.PutRes{Success: true}, nil
+}
+
+func (s *GrpcKVService) Delete(ctx context.Context, req *kv_client.DelReq) (*kv_client.DelRes, error) {
+	s.requests <- true
+	defer func() { <-s.requests }()
+
+	s.logger.Info("DELETE", zap.String("key", req.Key))
+	return &kv_client.DelRes{Ok: true}, nil
 }

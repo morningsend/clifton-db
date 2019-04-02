@@ -2,11 +2,10 @@ package kvserver
 
 import (
 	"github.com/zl14917/MastersProject/kvstore"
-	"github.com/zl14917/MastersProject/logger"
 	"github.com/zl14917/MastersProject/router"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
-	"log"
 	"os"
 	"path"
 	"strconv"
@@ -34,21 +33,19 @@ var defaultKvServerLockFileData = KvServerLockFileData{
 type KVServer struct {
 	Conf Config
 
-	kvGrpcApiServer *GrpcKVServer
+	kvGrpcApiServer *GrpcKVService
 
 	Partitions []PartitionId
 	kvStores   map[PartitionId]*kvstore.CliftonDBKVStore
 
 	requestRouter *router.ClientRequestRouter
-	grpcServer    grpc.Server
 
 	DbPath       string
 	LockFilePath string
 	LogsPath     string
 	MetadatPath  string
 	DataPath     string
-
-	Logger logger.Logger
+	Logger       *zap.Logger
 }
 
 func (s *KVServer) RegisterGrpcServer(server *grpc.Server) {
@@ -56,13 +53,15 @@ func (s *KVServer) RegisterGrpcServer(server *grpc.Server) {
 }
 
 func NewKVServer(conf Config) (*KVServer, error) {
-	var serverLogger logger.Logger
 	dbPath := conf.DbPath
 	logsPath := path.Join(dbPath, logPath, logFileName)
 
-	serverLogger, err := logger.NewFileLogger(path.Join(dbPath, logPath), logPrefix, log.LstdFlags)
+	serverLogger, err := zap.Config{
+		OutputPaths: []string{logsPath},
+	}.Build()
+
 	if err != nil {
-		serverLogger = log.New(os.Stdout, logPrefix, log.LstdFlags)
+		serverLogger = zap.NewExample()
 	}
 
 	server := &KVServer{
@@ -121,7 +120,10 @@ func (s *KVServer) WriteLockFile(data KvServerLockFileData) error {
 	err = yaml.NewEncoder(file).Encode(data)
 
 	if err != nil {
-		file.Close()
+		ferr := file.Close()
+		if ferr != nil {
+			s.Logger.Error("error closing file", zap.Error(ferr))
+		}
 		return err
 	}
 
@@ -185,4 +187,8 @@ func (s *KVServer) boostrapKVStoresForEachPartition(partitionIds []PartitionId) 
 
 func (s *KVServer) createFolders() error {
 	return ensureDirsExist(s.DataPath, s.MetadatPath, s.LogsPath)
+}
+
+func (s *KVServer) LookupPartitions(key string) (kv *kvstore.CliftonDBKVStore, ok bool) {
+	return nil, false
 }

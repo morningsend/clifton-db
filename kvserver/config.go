@@ -1,13 +1,6 @@
 package kvserver
 
-type KVStorageConfig struct {
-	IndexBlockSize int `yaml:"index-block-size"`
-	DataBlockSize  int `yaml:"data-block-size"`
-}
-
-type LogStorageConfig struct {
-	SegmentSize string `yaml:"segment-size"`
-}
+import "github.com/zl14917/MastersProject/kvstore"
 
 type Cluster struct {
 	SelfId   uint32 `yaml:"self-id"`
@@ -22,8 +15,7 @@ type Peer struct {
 }
 
 type Config struct {
-	Data   KVStorageConfig  `yaml:"data"`
-	Log    LogStorageConfig `yaml:"log"`
-	DbPath string           `yaml:"db-path"`
-	Nodes  Cluster          `yaml:"nodes"`
+	Data   kvstore.KVStoreConfig `yaml:"kv-store"`
+	DbPath string                `yaml:"db-path"`
+	Nodes  Cluster               `yaml:"nodes"`
 }
