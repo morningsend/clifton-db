@@ -10,26 +10,12 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
-  digest = "1:5f7414cf41466d4b4dd7ec52b2cd3e481e08cfd11e7e24fef730c0e483e88bb1"
-  name = "github.com/coreos/bbolt"
-  packages = ["."]
+  digest = "1:0ef770954bca104ee99b3b6b7f9b240605ac03517d9f98cbc1893daa03f3c038"
+  name = "github.com/coreos/go-semver"
+  packages = ["semver"]
   pruneopts = "UT"
-  revision = "63597a96ec0ad9e6d43c3fc81e809909e0237461"
-  version = "v1.3.2"
-
-[[projects]]
-  digest = "1:3ea6aa685b6fc293c1538f630d53095cea3e1620f02403c58975faf2ac8abcc8"
-  name = "github.com/coreos/etcd"
-  packages = [
-    "auth/authpb",
-    "etcdserver/etcdserverpb",
-    "mvcc/backend",
-    "mvcc/mvccpb",
-    "pkg/adt",
-  ]
-  pruneopts = "UT"
-  revision = "d57e8b8d97adfc4a6c224fe116714bf1a1f3beb9"
-  version = "v3.3.12"
+  revision = "8ab6407b697782a06568d4b7f1db25550ec2e4c6"
+  version = "v0.2.0"
 
 [[projects]]
   digest = "1:5c1e58f68ac83cf9c05c6c6748cd91b830dd94be9d2e6480add3c6524bb86b68"
@@ -48,20 +34,12 @@
   version = "v4"
 
 [[projects]]
-  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
-  name = "github.com/dgrijalva/jwt-go"
+  digest = "1:6f9339c912bbdda81302633ad7e99a28dfa5a639c864061f1929510a9a64aa74"
+  name = "github.com/dustin/go-humanize"
   packages = ["."]
   pruneopts = "UT"
-  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
-  version = "v3.2.0"
-
-[[projects]]
-  digest = "1:f6a10c5684511e8b326f61bbb10e03627a172216fd4c6ba3c7c4cdb5eb5826ee"
-  name = "github.com/etcd-io/etcd"
-  packages = ["auth"]
-  pruneopts = "UT"
-  revision = "d57e8b8d97adfc4a6c224fe116714bf1a1f3beb9"
-  version = "v3.3.12"
+  revision = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:a9c85389dbd301c97a3499fe15a2b65b505b5f0cb0f1120dea59f1f3d6b11d96"
@@ -88,6 +66,14 @@
   pruneopts = "UT"
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
   version = "v1.2.0"
+
+[[projects]]
+  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -143,22 +129,93 @@
   revision = "d0f344d83b0c80a1bc03b547a2374a9ec6711144"
 
 [[projects]]
-  branch = "master"
-  digest = "1:9d5b5d543996dd584da1db1e0de1926f3e4c3a8dba0fa2f8db70f3ebee2342e0"
-  name = "golang.org/x/crypto"
-  packages = [
-    "bcrypt",
-    "blowfish",
-  ]
+  digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
   pruneopts = "UT"
-  revision = "8dd112bcdc25174059e45e07517d9fc663123347"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
+
+[[projects]]
+  digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
+  version = "v1.0.3"
+
+[[projects]]
+  digest = "1:36775a135c00ff94c2ab9d4de842ae9bf95f45d2159ade2b033f3ecbafa69423"
+  name = "github.com/xiang90/probing"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "43a291ad63a214a207fefbf03c7d9d78b703162b"
+  version = "0.0.2"
 
 [[projects]]
   branch = "master"
-  digest = "1:fc7b6b4384e1e849d99eab58eca4f8c0a76bad4699117d5077a9a5c3c83e289e"
+  digest = "1:f158b37f85c1deb8d65210ec27ab69f7a8b1b8d4ad728910828d523463da2a68"
+  name = "go.etcd.io/etcd"
+  packages = [
+    "etcdserver/api/rafthttp",
+    "etcdserver/api/snap",
+    "etcdserver/api/snap/snappb",
+    "etcdserver/api/v2stats",
+    "pkg/crc",
+    "pkg/fileutil",
+    "pkg/httputil",
+    "pkg/ioutil",
+    "pkg/logutil",
+    "pkg/pbutil",
+    "pkg/systemd",
+    "pkg/tlsutil",
+    "pkg/transport",
+    "pkg/types",
+    "raft",
+    "raft/raftpb",
+    "version",
+    "wal",
+    "wal/walpb",
+  ]
+  pruneopts = "UT"
+  revision = "a621d807f061e1dd635033a8d6bc261461429e27"
+
+[[projects]]
+  digest = "1:3c1a69cdae3501bf75e76d0d86dc6f2b0a7421bc205c0cb7b96b19eed464a34d"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1ea20fb1cbb1cc08cbd0d913a96dead89aa18289"
+  version = "v1.3.2"
+
+[[projects]]
+  digest = "1:60bf2a5e347af463c42ed31a493d817f8a72f102543060ed992754e689805d1a"
+  name = "go.uber.org/multierr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3c4937480c32f4c13a875a1829af76c98ca3d40a"
+  version = "v1.1.0"
+
+[[projects]]
+  digest = "1:c52caf7bd44f92e54627a31b85baf06a68333a196b3d8d241480a774733dcf8b"
+  name = "go.uber.org/zap"
+  packages = [
+    ".",
+    "buffer",
+    "internal/bufferpool",
+    "internal/color",
+    "internal/exit",
+    "zapcore",
+  ]
+  pruneopts = "UT"
+  revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
+  version = "v1.9.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:cd17bc5dbd6ff6bd147dcd4712d423c1808f529c77c879c34df6b20b7501562b"
   name = "golang.org/x/net"
   packages = [
-    "context",
     "http/httpguts",
     "http2",
     "http2/hpack",
@@ -199,6 +256,14 @@
   pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9fdc2b55e8e0fafe4b41884091e51e77344f7dc511c5acedcfd98200003bff90"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  pruneopts = "UT"
+  revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
 
 [[projects]]
   branch = "master"
@@ -260,9 +325,17 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/etcd-io/etcd/auth",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/golang/protobuf/proto",
+    "github.com/spf13/cobra",
+    "go.etcd.io/etcd/etcdserver/api/rafthttp",
+    "go.etcd.io/etcd/etcdserver/api/snap",
+    "go.etcd.io/etcd/etcdserver/api/v2stats",
+    "go.etcd.io/etcd/pkg/types",
+    "go.etcd.io/etcd/raft",
+    "go.etcd.io/etcd/raft/raftpb",
+    "go.etcd.io/etcd/wal",
+    "go.uber.org/zap",
     "google.golang.org/grpc",
     "gopkg.in/yaml.v2",
   ]
