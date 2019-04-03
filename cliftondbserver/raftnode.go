@@ -1,4 +1,4 @@
-package raft
+package cliftondbserver
 
 import (
 	"context"
@@ -11,6 +11,9 @@ import (
 	"go.etcd.io/etcd/raft/raftpb"
 	"go.etcd.io/etcd/wal"
 	"go.uber.org/zap"
+	"net"
+	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"time"
@@ -67,7 +70,8 @@ type RaftNode struct {
 	commitC chan<- *string
 	errorC  chan<- error
 
-	Id        types.ID
+	Id types.ID
+
 	Peers     []PeerEntry
 	ClusterId types.ID
 	join      bool
@@ -98,6 +102,9 @@ type RaftNode struct {
 	httpstopc chan struct{}
 
 	logger *zap.Logger
+
+	RaftURL    string
+	raftServer *http.Server
 }
 
 type RaftConfig struct {
@@ -175,39 +182,17 @@ func (r *RaftNode) replayWAL() (*wal.WAL, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *RaftNode) Loop2(ticker *time.Ticker) {
-	var confChangeCount uint = 0
-	proposeC := r.proposeC
-	confChangeC := r.confChangeC
-
-	for {
-		select {
-		case _, ok := <-proposeC:
-			r.logger.Info("received proposed msg")
-			if ! ok {
-				proposeC = nil
-			}
-		case _, ok := <-confChangeC:
-			if !ok {
-				confChangeC = nil
-			} else {
-				confChangeCount++
-			}
-		}
-	}
-}
-
 func (r *RaftNode) ProcessEntry(entry raftpb.Entry) {
 
 }
 func (r *RaftNode) Loop(ticker *time.Ticker) error {
 	var (
-		snap, err = r.raftStorage.Snapshot()
+		snapshot, err = r.raftStorage.Snapshot()
 	)
 
-	r.confState = snap.Metadata.ConfState
-	r.snapshotIndex = snap.Metadata.Index
-	r.appliedIndex = snap.Metadata.Index
+	r.confState = snapshot.Metadata.ConfState
+	r.snapshotIndex = snapshot.Metadata.Index
+	r.appliedIndex = snapshot.Metadata.Index
 
 	if err != nil {
 		r.logger.Error("error reading snapshot from storage", zap.Error(err))
@@ -240,7 +225,7 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 			r.transport.Send(rd.Messages)
 
 			for _, entry := range rd.CommittedEntries {
-				r.ProcessEntry(entry)
+
 				if entry.Type == raftpb.EntryConfChange {
 					var cc raftpb.ConfChange
 					if err := cc.Unmarshal(entry.Data); err != nil {
@@ -248,7 +233,13 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 					}
 					r.Node.ApplyConfChange(cc)
 				}
+
+				if entry.Type == raftpb.EntryNormal {
+					r.ProcessEntry(entry)
+				}
+
 			}
+
 			r.Node.Advance()
 		case err := <-r.transport.ErrorC:
 			r.logger.Error("transport: error sending message", zap.Error(err))
@@ -259,6 +250,31 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 	}
 }
 
+func (r *RaftNode) ServeChannels() {
+	snapshot, err := r.raftStorage.Snapshot()
+	if err != nil {
+		r.logger.Fatal("error creating snapshot", zap.Error(err))
+	}
+
+	r.confState = snapshot.Metadata.ConfState
+	r.snapshotIndex = snapshot.Metadata.Index
+	r.appliedIndex = snapshot.Metadata.Index
+
+	defer func() {
+		err := r.wal.Close()
+		if err != nil {
+			r.logger.Error("error closing wal", zap.Error(err))
+		}
+	}()
+}
+
+func (r *RaftNode) Propose(ctx context.Context, entryData []byte) error {
+	return r.Node.Propose(ctx, entryData)
+}
+
+func (r *RaftNode) ProposeConfChange(ctx context.Context, change raftpb.ConfChange) error {
+	return r.Node.ProposeConfChange(ctx, change)
+}
 func (r *RaftNode) Stop() {
 	close(r.commitC)
 	close(r.errorC)
@@ -278,6 +294,30 @@ func (r *RaftNode) PublishEntries(entries []raftpb.Entry) bool {
 	return false
 }
 
+func (r *RaftNode) StartRaftServer() error {
+	raftUrl, err := url.Parse(r.RaftURL)
+	if err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("tcp", raftUrl.Host)
+	if err != nil {
+		return err
+	}
+
+	sl, err := NewStoppableListener(listener)
+	if err != nil {
+		listener.Close()
+		return err
+	}
+
+	r.raftServer = &http.Server{
+		Handler: r.transport.Handler(),
+	}
+
+	err = r.raftServer.Serve(sl)
+	return err
+}
 func (rc *RaftNode) Process(ctx context.Context, m raftpb.Message) error {
 	return rc.Node.Step(ctx, m)
 }

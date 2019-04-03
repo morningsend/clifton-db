@@ -72,9 +72,9 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 	dbPath := conf.DbPath
 	logsPath := path.Join(dbPath, logPath, logFileName)
 
-	serverLogger, err := zap.Config{
-		OutputPaths: []string{logsPath},
-	}.Build()
+	serverLogger, err := zap.
+		NewDevelopmentConfig().
+		Build()
 
 	if err != nil {
 		serverLogger = zap.NewExample()
@@ -96,7 +96,7 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 		Logger:        serverLogger,
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Conf.Server.ListenPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", server.Conf.Server.ListenPort))
 
 	if err != nil {
 		return nil, err
@@ -104,8 +104,11 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 
 	sl, err := NewStoppableListener(listener)
 	if err != nil {
+		serverLogger.Error("error starting listener", zap.Error(err))
+		err = listener.Close()
 		return nil, err
 	}
+
 	server.listener = sl
 
 	go func() {
@@ -246,5 +249,9 @@ func (s *CliftonDbServer) Shutdown() {
 
 	if s.grpcServer != nil {
 		s.grpcServer.GracefulStop()
+	}
+
+	if s.listener != nil {
+		s.listener.Stop()
 	}
 }
