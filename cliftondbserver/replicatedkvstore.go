@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"errors"
+	"go.etcd.io/etcd/raft/raftpb"
 )
 
 type ReadConsistencyLevel int
@@ -33,14 +33,31 @@ type KvStoreDelete struct {
 }
 
 type ReplicatedKvStore struct {
-	raftNode *RaftNode
+	r        *RaftNode
 	proposeC chan<- string
 	commitC  <-chan *string
 }
 
-func (p *ReplicatedKvStore) NewReplicatedKvStore() (*ReplicatedKvStore, error) {
+func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKvStore, error) {
 
-	return nil, errors.New("not implemented")
+	proposeC := make(chan *string)
+	confChangeC := make(chan raftpb.ConfChange)
+
+	store := &ReplicatedKvStore{}
+
+	r, err := NewRaftNode(conf, proposeC, confChangeC)
+	if err != nil {
+		return nil, err
+	}
+
+	p.r = r
+
+	err = p.r.StartRaftServer()
+	if err != nil {
+		return nil, err
+	}
+
+	return store, nil
 }
 
 func (b *ReplicatedKvStore) ProposePut(ctx context.Context, key string, value []byte) error {

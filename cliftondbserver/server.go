@@ -250,8 +250,4 @@ func (s *CliftonDbServer) Shutdown() {
 	if s.grpcServer != nil {
 		s.grpcServer.GracefulStop()
 	}
-
-	if s.listener != nil {
-		s.listener.Stop()
-	}
 }

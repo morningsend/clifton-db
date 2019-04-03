@@ -67,8 +67,8 @@ type RaftNode struct {
 	confChangeC <-chan raftpb.ConfChange
 
 	// channel to report commit and error
-	commitC chan<- *string
-	errorC  chan<- error
+	commitC chan *string
+	errorC  chan error
 
 	Id types.ID
 
@@ -126,6 +126,14 @@ func RaftClusterConfig(id uint, peers []PeerEntry) RaftConfig {
 		JoinCluster: true,
 		Peers:       peers,
 	}
+}
+
+func (r *RaftNode) ErrorC() chan error {
+	return r.errorC
+}
+
+func (r *RaftNode) CommitC() chan *string {
+	return r.commitC
 }
 
 func NewRaftNode(conf RaftConfig, proposeC <-chan *string, confChangeC <-chan raftpb.ConfChange,
