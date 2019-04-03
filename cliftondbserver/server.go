@@ -1,7 +1,9 @@
 package cliftondbserver
 
 import (
+	"context"
 	"fmt"
+	"github.com/zl14917/MastersProject/api/cluster-services"
 	"github.com/zl14917/MastersProject/api/kv-client"
 	"github.com/zl14917/MastersProject/kvstore"
 	"github.com/zl14917/MastersProject/router"
@@ -17,10 +19,10 @@ import (
 const lockFileName = "cliftondb.lock.file"
 const logPath = "logs/"
 const metaPath = "metadata/"
-const dataPath = "data/"
+const partitionPath = "partitions/"
 const PartionLockFileName = "partition.lock.file"
 
-const logPrefix = "[kv-server]"
+const logPrefix = "[kv-grpcServer]"
 const logFileName = "kvserver.log"
 
 type PartitionId int
@@ -37,21 +39,33 @@ type CliftonDbServer struct {
 	Conf Config
 
 	kvGrpcApiServer kv_client.KVStoreServer
-	server          *grpc.Server
+	grpcServer      *grpc.Server
 
 	Partitions []PartitionId
 	kvStores   map[PartitionId]*kvstore.CliftonDBKVStore
 
 	requestRouter *router.ClientRequestRouter
 
-	DbRootPath   string
-	LockFilePath string
-	LogsPath     string
-	MetadatPath  string
-	DataPath     string
-	Logger       *zap.Logger
+	DbRootPath    string
+	LockFilePath  string
+	LogsPath      string
+	MetadatPath   string
+	PartitionPath string
+	Logger        *zap.Logger
 
 	listener *StoppableListener
+}
+
+func (s *CliftonDbServer) AddNode(context.Context, *cluster_services.AddNodeReq) (*cluster_services.AddNodeRes, error) {
+	panic("implement me")
+}
+
+func (s *CliftonDbServer) GetNodeList(context.Context, *interface{}) (*cluster_services.PeerListRes, error) {
+	panic("implement me")
+}
+
+func (s *CliftonDbServer) RemoveNode(context.Context, *cluster_services.RemoveNodeReq) (*cluster_services.RemoveNodeRes, error) {
+	panic("implement me")
 }
 
 func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
@@ -73,14 +87,36 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 		kvStores:        make(map[PartitionId]*kvstore.CliftonDBKVStore),
 		requestRouter:   nil,
 
-		DbRootPath:   dbPath,
-		LockFilePath: path.Join(dbPath, lockFileName),
-		LogsPath:     logsPath,
-		MetadatPath:  path.Join(dbPath, metaPath),
-		DataPath:     path.Join(dbPath, dataPath),
-
-		Logger: serverLogger,
+		DbRootPath:    dbPath,
+		LockFilePath:  path.Join(dbPath, lockFileName),
+		LogsPath:      logsPath,
+		MetadatPath:   path.Join(dbPath, metaPath),
+		PartitionPath: path.Join(dbPath, partitionPath),
+		grpcServer:    grpc.NewServer(),
+		Logger:        serverLogger,
 	}
+
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Conf.Server.ListenPort))
+
+	if err != nil {
+		return nil, err
+	}
+
+	sl, err := NewStoppableListener(listener)
+	if err != nil {
+		return nil, err
+	}
+	server.listener = sl
+
+	go func() {
+		err := server.grpcServer.Serve(sl)
+		if err != nil {
+			server.Logger.Error("error serving GRPC", zap.Error(err))
+		}
+	}()
+
+	server.ServeClusterApi()
+	server.ServeKvStoreApi()
 
 	return server, nil
 }
@@ -138,7 +174,7 @@ func (s *CliftonDbServer) WriteLockFile(data KvServerLockFileData) error {
 }
 
 func (s *CliftonDbServer) boostrapInClusterMode() error {
-	s.Logger.Info("bootstraping cliftondb server in cluster mode")
+	s.Logger.Info("bootstraping cliftondb grpcServer in cluster mode")
 	return nil
 }
 
@@ -148,7 +184,7 @@ func (s *CliftonDbServer) boostrapInClusterMode() error {
 // 3. if not create all folders
 // load or create kvstore partitions from Conf.
 func (s *CliftonDbServer) boostrapInStandaloneMode() error {
-	s.Logger.Info("boostraping cliftondb server in standalone mode")
+	s.Logger.Info("boostraping cliftondb grpcServer in standalone mode")
 	var (
 		err error
 	)
@@ -174,7 +210,7 @@ func (s *CliftonDbServer) boostrapInStandaloneMode() error {
 
 func (s *CliftonDbServer) boostrapKVStoresForEachPartition(partitionIds []PartitionId) error {
 	for _, id := range partitionIds {
-		storeDirPath := path.Join(s.DataPath, strconv.Itoa(int(id)))
+		storeDirPath := path.Join(s.PartitionPath, strconv.Itoa(int(id)))
 		s.Logger.Info("will create/open kv-store at path", zap.String("storeDirPath", storeDirPath))
 		store, err := kvstore.NewCliftonDBKVStore(storeDirPath, s.LogsPath)
 
@@ -187,41 +223,20 @@ func (s *CliftonDbServer) boostrapKVStoresForEachPartition(partitionIds []Partit
 }
 
 func (s *CliftonDbServer) createFolders() error {
-	return ensureDirsExist(s.DataPath, s.MetadatPath, s.LogsPath)
+	return ensureDirsExist(s.PartitionPath, s.MetadatPath, s.LogsPath)
 }
 
 func (s *CliftonDbServer) LookupPartitions(key string) (kv *kvstore.CliftonDBKVStore, ok bool) {
 	return nil, false
 }
 
-func (s *CliftonDbServer) ServeGrpc() (doneC <-chan struct{}, err error) {
-	s.server = grpc.NewServer()
+func (s *CliftonDbServer) ServeClusterApi() {
+	cluster_services.RegisterClusterNodeServer(s.grpcServer, s)
+}
+
+func (s *CliftonDbServer) ServeKvStoreApi() {
 	s.kvGrpcApiServer = NewGrpcKVService(100)
-	kv_client.RegisterKVStoreServer(s.server, s.kvGrpcApiServer)
-	donec := make(chan struct{})
-
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Conf.Server.ListenPort))
-
-	if err != nil {
-		return nil, err
-	}
-
-	sl, err := NewStoppableListener(listener)
-	if err != nil {
-		return nil, err
-	}
-
-	s.listener = sl
-
-	go func() {
-		err := s.server.Serve(sl)
-		if err != nil {
-			s.Logger.Error("error serving GRPC", zap.Error(err))
-		}
-		close(donec)
-	}()
-
-	return donec, nil
+	kv_client.RegisterKVStoreServer(s.grpcServer, s.kvGrpcApiServer)
 }
 
 func (s *CliftonDbServer) Shutdown() {
@@ -229,9 +244,7 @@ func (s *CliftonDbServer) Shutdown() {
 		s.listener.Stop()
 	}
 
-	if s.server != nil {
-		s.server.GracefulStop()
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
 	}
-
-
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var configPath = flag.String("config", "", "Path to clifton DB configuration file.")
@@ -125,12 +126,16 @@ func main() {
 		log.Fatalln("bootstrap failed", err)
 	}
 
-	log.Printf("starting GRPC api server")
-	err, doneC := kvServer.ServeGrpc()
+	log.Printf("starting GRPC api grpcServer")
+	err = kvServer.ServeKvStoreApi()
 
 	if err != nil {
-		log.Fatalln("failed to server grpc", err)
+		log.Fatalln("failed to grpcServer grpc", err)
 	}
+
 	log.Printf("serving request on localhost:%d", config.Server.ListenPort)
-	<-doneC
+
+	for {
+		time.Sleep(5 * time.Second)
+	}
 }

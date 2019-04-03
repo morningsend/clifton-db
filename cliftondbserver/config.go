@@ -17,7 +17,7 @@ type Peer struct {
 }
 
 type Config struct {
-	Server ApiServer `yaml:"grpc-server"`
+	Server ApiServer `yaml:"grpc-grpcServer"`
 	DbPath string    `yaml:"db-path"`
 	Nodes  RaftNodes `yaml:"raft-nodes"`
 }

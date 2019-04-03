@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cluster_manager;
+package cluster_services;
 
 import "google/protobuf/empty.proto";
 
