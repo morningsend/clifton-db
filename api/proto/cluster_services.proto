@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cluster_node;
+package cluster_manager;
 
 import "google/protobuf/empty.proto";
 
@@ -42,4 +42,26 @@ service ClusterNode {
     rpc AddNode (AddNodeReq) returns (AddNodeRes) {}
     rpc RemoveNode (RemoveNodeReq) returns (RemoveNodeRes) {}
     rpc GetNodeList (google.protobuf.Empty) returns (PeerListRes) {}
+}
+
+message RegisterNodeReq {
+    uint32 NodeId = 1;
+    string NetworkAddress = 2;
+}
+
+message RegisterNodeRes {
+    bool ok = 1;
+}
+
+message DeRegisterNodeReq {
+    uint32 NodeId = 1;
+}
+
+message DeRegisterNodeRes {
+
+}
+
+service ClusterManager {
+    rpc RegisterNode(RegisterNodeReq) returns(RegisterNodeRes) {}
+    rpc DeRegisterNode(DeRegisterNodeReq) returns(DeRegisterNodeRes){}
 }

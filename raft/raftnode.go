@@ -123,7 +123,6 @@ func RaftClusterConfig(id uint, peers []PeerEntry) RaftConfig {
 
 func NewRaftNode(conf RaftConfig, proposeC <-chan *string, confChangeC <-chan raftpb.ConfChange,
 	options ...Options) (*RaftNode, error) {
-	var err error
 
 	commitC := make(chan *string)
 	errorC := make(chan error)
