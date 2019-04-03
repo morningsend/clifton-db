@@ -1,7 +1,8 @@
-package kvstore
+package raft
 
 import (
 	"context"
+	"errors"
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/etcdserver/api/snap"
 	"go.etcd.io/etcd/etcdserver/api/v2stats"
@@ -16,6 +17,7 @@ import (
 )
 
 const snapshotPath = "/snapshots"
+const walPath = "/wal"
 
 var defaultSnapshotCount uint64 = 10000
 
@@ -34,16 +36,16 @@ func (j *JoinClusterOption) apply(r *RaftNode) { r.join = true }
 func JoinCluster() Options                     { return &JoinClusterOption{} }
 
 type ClusterOptions struct {
-	id    int
+	id    uint
 	peers []PeerEntry
 }
 type PeerEntry struct {
-	Id          int
+	Id          uint
 	NetworkAddr string
 }
 
-func (o *ClusterOptions) apply(r *RaftNode)              { r.Peers = o.peers; r.Id = types.ID(o.id) }
-func WithPeers(nodeId int, entries ...PeerEntry) Options { return &ClusterOptions{id: nodeId, peers: entries} }
+func (o *ClusterOptions) apply(r *RaftNode)               { r.Peers = o.peers; r.Id = types.ID(o.id) }
+func WithPeers(nodeId uint, entries ...PeerEntry) Options { return &ClusterOptions{id: nodeId, peers: entries} }
 
 type DirPathOption struct{ raftDirPath string }
 
@@ -98,18 +100,54 @@ type RaftNode struct {
 	logger *zap.Logger
 }
 
-func NewRaftNode(proposeC <-chan *string, options ...Options) (*RaftNode, error) {
+type RaftConfig struct {
+	SelfId      uint
+	JoinCluster bool
+	Peers       []PeerEntry
+}
+
+func RaftStandaloneConfig() RaftConfig {
+	return RaftConfig{
+		SelfId:      1,
+		JoinCluster: false,
+	}
+}
+
+func RaftClusterConfig(id uint, peers []PeerEntry) RaftConfig {
+	return RaftConfig{
+		SelfId:      id,
+		JoinCluster: true,
+		Peers:       peers,
+	}
+}
+
+func NewRaftNode(conf RaftConfig, proposeC <-chan *string, confChangeC <-chan raftpb.ConfChange,
+	options ...Options) (*RaftNode, error) {
 	var err error
+
+	commitC := make(chan *string)
+	errorC := make(chan error)
+
 	n := &RaftNode{
 		ClusterId:    defaultClusterID,
-		Id:           1,
+		Id:           types.ID(conf.SelfId),
 		Peers:        []PeerEntry{},
 		tickInterval: defaultTickInterval,
+		commitC:      commitC,
+		errorC:       errorC,
+		stopc:        make(chan struct{}),
 	}
 
 	for _, option := range options {
 		option.apply(n)
 	}
+
+	wl, err := n.replayWAL()
+	if err != nil {
+		return nil, err
+	}
+
+	n.wal = wl
 
 	n.transport = &rafthttp.Transport{
 		Logger:      zap.NewExample(),
@@ -134,8 +172,8 @@ func NewRaftNode(proposeC <-chan *string, options ...Options) (*RaftNode, error)
 	return n, nil
 }
 
-func (r *RaftNode) replayWAL(w *wal.WAL) {
-
+func (r *RaftNode) replayWAL() (*wal.WAL, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (r *RaftNode) Loop2(ticker *time.Ticker) {
@@ -219,13 +257,13 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 			r.Stop()
 			return nil
 		}
-
 	}
 }
 
 func (r *RaftNode) Stop() {
 	close(r.commitC)
 	close(r.errorC)
+	r.transport.Stop()
 	r.Node.Stop()
 }
 

@@ -1,6 +1,6 @@
 PROTO_DIR=./api/proto
 OUTPUT_DIR=./api
-gen-all: gen-client-proto gen-raft-proto gen-cluster-manager-proto
+gen-all: gen-client-proto gen-raft-proto gen-cluster-manager-proto gen-cluster-node-proto
 	echo "generating"
 
 gen-client-proto:
@@ -12,3 +12,6 @@ gen-raft-proto:
 
 gen-cluster-manager-proto:
     protoc -I=${PROTO_DIR} -I=${GOPATH}/src -I=${GOPATH}/src/github.com/gogo/protobuf/protobuf --gofast_out=plugins=grpc:${OUTPUT_DIR}/cluster-manager/ ${PROTO_DIR}/cluster_manager_api.proto
+
+gen-cluster-node-proto:
+	protoc -I=${PROTO_DIR} -I=${GOPATH}/src -I=${GOPATH}/src/github.com/gogo/protobuf/protobuf --gofast_out=plugins=grpc:${OUTPUT_DIR}/cluster-node/ ${PROTO_DIR}/cluster_node.proto

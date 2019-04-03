@@ -113,7 +113,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	kvServer, err := NewKVServer(config)
+	kvServer, err := NewCliftonDbServer(config)
 	log.Printf("creating kvserver")
 	if err != nil {
 		log.Fatalln("error create new kvserver", err)

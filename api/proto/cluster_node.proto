@@ -1,0 +1,45 @@
+syntax = "proto3";
+package cluster_node;
+
+import "google/protobuf/empty.proto";
+
+message AddNodeReq {
+    uint32 NodeId = 1;
+
+}
+
+message AddNodeRes {
+    bool Success = 1;
+    string ServerAddress = 2;
+    string RaftAddress = 3;
+}
+
+message UpdateNodeReq {
+    uint32 NodeId = 1;
+}
+
+message UpdateNodeRes {
+    bool Success = 1;
+}
+message RemoveNodeReq {
+    uint32 NodeId = 1;
+}
+
+message RemoveNodeRes {
+    bool Success = 1;
+}
+
+message Peer {
+    uint32 Id = 1;
+    string ServerAddress = 2;
+    string RaftAddress = 3;
+}
+message PeerListRes {
+    map<uint32, Peer> Peers = 1;
+}
+
+service ClusterNode {
+    rpc AddNode (AddNodeReq) returns (AddNodeRes) {}
+    rpc RemoveNode (RemoveNodeReq) returns (RemoveNodeRes) {}
+    rpc GetNodeList (google.protobuf.Empty) returns (PeerListRes) {}
+}

@@ -38,12 +38,9 @@ message LeaveClusterResponse {
 }
 
 service ClusterManagerApi {
-    rpc GetNodeList (google.protobuf.Empty) returns (NodeList) {
-    }
-    rpc JoinCluster (JoinClusterRequest) returns (JoinClusterResponse) {
-    }
-    rpc LeaveCluster (LeaveClusterRequest) returns (LeaveClusterResponse) {
-    }
+    rpc GetNodeList (google.protobuf.Empty) returns (NodeList) {}
+    rpc JoinCluster (JoinClusterRequest) returns (JoinClusterResponse) {}
+    rpc LeaveCluster (LeaveClusterRequest) returns (LeaveClusterResponse) {}
 }
 
 service ClusterAgentApi {
