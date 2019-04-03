@@ -136,7 +136,7 @@ func (r *RaftNode) CommitC() chan *string {
 	return r.commitC
 }
 
-func NewRaftNode(conf RaftConfig, proposeC <-chan *string, confChangeC <-chan raftpb.ConfChange,
+func NewRaftNode(conf RaftConfig, proposeC <-chan string, confChangeC <-chan raftpb.ConfChange,
 	options ...Options) (*RaftNode, error) {
 
 	commitC := make(chan *string)
@@ -150,6 +150,8 @@ func NewRaftNode(conf RaftConfig, proposeC <-chan *string, confChangeC <-chan ra
 		commitC:      commitC,
 		errorC:       errorC,
 		stopc:        make(chan struct{}),
+		proposeC:     proposeC,
+		confChangeC:  confChangeC,
 	}
 
 	for _, option := range options {
@@ -315,7 +317,11 @@ func (r *RaftNode) StartRaftServer() error {
 
 	sl, err := NewStoppableListener(listener)
 	if err != nil {
-		listener.Close()
+		r.logger.Error("error creating stoppable listener", zap.Error(err))
+		cerr := listener.Close()
+		if cerr != nil {
+			r.logger.Error("error closing listener", zap.Error(cerr))
+		}
 		return err
 	}
 

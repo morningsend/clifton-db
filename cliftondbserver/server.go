@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/zl14917/MastersProject/api/cluster-services"
-	"github.com/zl14917/MastersProject/api/kv-client"
 	"github.com/zl14917/MastersProject/kvstore"
 	"github.com/zl14917/MastersProject/router"
 	"go.uber.org/zap"
@@ -38,12 +37,10 @@ var defaultKvServerLockFileData = KvServerLockFileData{
 type CliftonDbServer struct {
 	Conf Config
 
-	kvGrpcApiServer kv_client.KVStoreServer
-	grpcServer      *grpc.Server
-
 	Partitions []PartitionId
 	kvStores   map[PartitionId]*kvstore.CliftonDBKVStore
 
+	grpcServer    *grpc.Server
 	requestRouter *router.ClientRequestRouter
 
 	DbRootPath    string
@@ -83,17 +80,16 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 	server := &CliftonDbServer{
 		Conf: conf,
 
-		kvGrpcApiServer: nil,
-		kvStores:        make(map[PartitionId]*kvstore.CliftonDBKVStore),
-		requestRouter:   nil,
+		kvStores:      make(map[PartitionId]*kvstore.CliftonDBKVStore),
+		requestRouter: nil,
 
 		DbRootPath:    dbPath,
 		LockFilePath:  path.Join(dbPath, lockFileName),
 		LogsPath:      logsPath,
 		MetadatPath:   path.Join(dbPath, metaPath),
 		PartitionPath: path.Join(dbPath, partitionPath),
-		grpcServer:    grpc.NewServer(),
-		Logger:        serverLogger,
+
+		Logger: serverLogger,
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", server.Conf.Server.ListenPort))
@@ -103,23 +99,15 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 	}
 
 	sl, err := NewStoppableListener(listener)
+	server.listener = sl
+
 	if err != nil {
 		serverLogger.Error("error starting listener", zap.Error(err))
 		err = listener.Close()
 		return nil, err
 	}
 
-	server.listener = sl
-
-	go func() {
-		err := server.grpcServer.Serve(sl)
-		if err != nil {
-			server.Logger.Error("error serving GRPC", zap.Error(err))
-		}
-	}()
-
 	server.ServeClusterApi()
-	server.ServeKvStoreApi()
 
 	return server, nil
 }
@@ -235,11 +223,6 @@ func (s *CliftonDbServer) LookupPartitions(key string) (kv *kvstore.CliftonDBKVS
 
 func (s *CliftonDbServer) ServeClusterApi() {
 	cluster_services.RegisterClusterNodeServer(s.grpcServer, s)
-}
-
-func (s *CliftonDbServer) ServeKvStoreApi() {
-	s.kvGrpcApiServer = NewGrpcKVService(100)
-	kv_client.RegisterKVStoreServer(s.grpcServer, s.kvGrpcApiServer)
 }
 
 func (s *CliftonDbServer) Shutdown() {
