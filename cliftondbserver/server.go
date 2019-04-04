@@ -107,7 +107,7 @@ func NewCliftonDbServer(conf Config) (*CliftonDbServer, error) {
 		return nil, err
 	}
 
-	server.ServeClusterApi()
+	server.ServeClusterNodeApi()
 
 	return server, nil
 }
@@ -221,7 +221,7 @@ func (s *CliftonDbServer) LookupPartitions(key string) (kv *kvstore.CliftonDBKVS
 	return nil, false
 }
 
-func (s *CliftonDbServer) ServeClusterApi() {
+func (s *CliftonDbServer) ServeClusterNodeApi() {
 	cluster_services.RegisterClusterNodeServer(s.grpcServer, s)
 }
 

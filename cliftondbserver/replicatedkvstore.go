@@ -36,20 +36,20 @@ var DefaultGetOption = GetOptions{
 	DefaultReadConsistency,
 }
 
-type KvStorePut struct {
+type KvStoreAction struct {
+	Type    KvStoreActionType
 	KeyHash uint32
 	Key     string
 	Value   []byte
 }
 
-type KvStoreGet struct {
-	Key string
-}
+type KvStoreActionType int
 
-type KvStoreDelete struct {
-	KeyHash uint32
-	Key     string
-}
+const (
+	GetAction KvStoreActionType = iota
+	PutAction
+	DeleteAction
+)
 
 type ReplicatedKvStore struct {
 	r           *RaftNode
@@ -81,6 +81,7 @@ func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKv
 	if err != nil {
 		return nil, err
 	}
+
 	listener, err := net.Listen("tcp", ":8080")
 
 	if err != nil {
@@ -124,9 +125,10 @@ func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKv
 
 func (b *ReplicatedKvStore) ProposePut(ctx context.Context, key string, value []byte) error {
 	var buf bytes.Buffer
-	putReq := KvStorePut{
+	putReq := KvStoreAction{
 		Key:   key,
 		Value: value,
+		Type:  PutAction,
 	}
 	if err := gob.NewEncoder(&buf).Encode(&putReq); err != nil {
 		return err
@@ -137,8 +139,9 @@ func (b *ReplicatedKvStore) ProposePut(ctx context.Context, key string, value []
 
 func (st *ReplicatedKvStore) ProposeDelete(ctx context.Context, key string) error {
 	var buf bytes.Buffer
-	delReq := KvStoreDelete{
-		Key: key,
+	delReq := KvStoreAction{
+		Key:  key,
+		Type: DeleteAction,
 	}
 	if err := gob.NewEncoder(&buf).Encode(&delReq); err != nil {
 		return err
@@ -174,5 +177,6 @@ func (s *ReplicatedKvStore) Stop() {
 }
 
 func (s *ReplicatedKvStore) Apply(entryData []byte) {
-
+	_ = bytes.NewBuffer(entryData)
+	return
 }

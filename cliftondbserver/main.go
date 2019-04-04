@@ -127,11 +127,7 @@ func main() {
 	}
 
 	log.Printf("starting GRPC api grpcServer")
-	err = kvServer.ServeKvStoreApi()
-
-	if err != nil {
-		log.Fatalln("failed to grpcServer grpc", err)
-	}
+	kvServer.ServeClusterNodeApi()
 
 	log.Printf("serving request on localhost:%d", config.Server.ListenPort)
 
