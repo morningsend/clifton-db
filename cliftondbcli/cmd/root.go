@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	rootCmd.PersistentFlags().String("address", "a", "GRPC server address including host and port [host]:[port]")
+	rootCmd.PersistentFlags().StringArray("address", []string{}, "GRPC server address including host and port [host]:[port]")
 }
 
 var rootCmd = &cobra.Command{

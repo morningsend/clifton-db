@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package internal_request;
+
+message RequestHeader {
+    uint64 ID = 1;
+}
+message ResponseHeader {
+    bool ok = 1;
+    string error = 2;
+}
+
+message PutReq {
+    bytes key = 1;
+    bytes value = 2;
+    bool returnPrevious = 3;
+}
+
+message PutRes {
+    bytes previousValue = 2;
+}
+
+message GetReq {
+    bytes key = 1;
+}
+
+message GetRes {
+    bytes value = 1;
+}
+
+message DeleteReq {
+    bytes key = 1;
+    bool returnPrevious = 2;
+}
+
+message DeleteRes {
+    bytes previousValue = 2;
+}
+
+message InternalRequest {
+    RequestHeader header = 1;
+    uint64 ID = 2;
+
+    oneof request {
+        PutReq putReq = 10;
+        GetReq getReq = 11;
+        DeleteReq deleteReq = 12;
+    }
+}
+
+message InternalResponse {
+    ResponseHeader header = 1;
+    oneof response {
+        GetRes getRes = 10;
+        PutRes putRes = 11;
+        DeleteRes deleteRes = 12;
+        EmptyResponse empty = 13;
+    }
+}
+
+message EmptyResponse {
+}

@@ -23,6 +23,31 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type ClientRpcStatus int32
+
+const (
+	ClientRpcStatus_OK         ClientRpcStatus = 0
+	ClientRpcStatus_NOT_LEADER ClientRpcStatus = 1
+)
+
+var ClientRpcStatus_name = map[int32]string{
+	0: "OK",
+	1: "NOT_LEADER",
+}
+
+var ClientRpcStatus_value = map[string]int32{
+	"OK":         0,
+	"NOT_LEADER": 1,
+}
+
+func (x ClientRpcStatus) String() string {
+	return proto.EnumName(ClientRpcStatus_name, int32(x))
+}
+
+func (ClientRpcStatus) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{0}
+}
+
 type GetReq struct {
 	Key                  string   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -376,7 +401,712 @@ func (m *Address) GetPort() uint32 {
 	return 0
 }
 
+type RegisterClientReq struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RegisterClientReq) Reset()         { *m = RegisterClientReq{} }
+func (m *RegisterClientReq) String() string { return proto.CompactTextString(m) }
+func (*RegisterClientReq) ProtoMessage()    {}
+func (*RegisterClientReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{7}
+}
+func (m *RegisterClientReq) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RegisterClientReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RegisterClientReq.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RegisterClientReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RegisterClientReq.Merge(m, src)
+}
+func (m *RegisterClientReq) XXX_Size() int {
+	return m.Size()
+}
+func (m *RegisterClientReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_RegisterClientReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RegisterClientReq proto.InternalMessageInfo
+
+type RegisterClientRes struct {
+	Status               ClientRpcStatus `protobuf:"varint,1,opt,name=status,proto3,enum=kv_client.ClientRpcStatus" json:"status,omitempty"`
+	ClientId             uint64          `protobuf:"varint,2,opt,name=clientId,proto3" json:"clientId,omitempty"`
+	LeaderHint           *Address        `protobuf:"bytes,3,opt,name=leaderHint,proto3" json:"leaderHint,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
+}
+
+func (m *RegisterClientRes) Reset()         { *m = RegisterClientRes{} }
+func (m *RegisterClientRes) String() string { return proto.CompactTextString(m) }
+func (*RegisterClientRes) ProtoMessage()    {}
+func (*RegisterClientRes) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{8}
+}
+func (m *RegisterClientRes) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RegisterClientRes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RegisterClientRes.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RegisterClientRes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RegisterClientRes.Merge(m, src)
+}
+func (m *RegisterClientRes) XXX_Size() int {
+	return m.Size()
+}
+func (m *RegisterClientRes) XXX_DiscardUnknown() {
+	xxx_messageInfo_RegisterClientRes.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RegisterClientRes proto.InternalMessageInfo
+
+func (m *RegisterClientRes) GetStatus() ClientRpcStatus {
+	if m != nil {
+		return m.Status
+	}
+	return ClientRpcStatus_OK
+}
+
+func (m *RegisterClientRes) GetClientId() uint64 {
+	if m != nil {
+		return m.ClientId
+	}
+	return 0
+}
+
+func (m *RegisterClientRes) GetLeaderHint() *Address {
+	if m != nil {
+		return m.LeaderHint
+	}
+	return nil
+}
+
+type ClientCmdReq struct {
+	ClientId       uint64 `protobuf:"varint,1,opt,name=clientId,proto3" json:"clientId,omitempty"`
+	SequenceNumber uint64 `protobuf:"varint,2,opt,name=sequenceNumber,proto3" json:"sequenceNumber,omitempty"`
+	// Types that are valid to be assigned to Command:
+	//	*ClientCmdReq_PutReq
+	//	*ClientCmdReq_DelReq
+	Command              isClientCmdReq_Command `protobuf_oneof:"command"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *ClientCmdReq) Reset()         { *m = ClientCmdReq{} }
+func (m *ClientCmdReq) String() string { return proto.CompactTextString(m) }
+func (*ClientCmdReq) ProtoMessage()    {}
+func (*ClientCmdReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{9}
+}
+func (m *ClientCmdReq) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClientCmdReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClientCmdReq.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClientCmdReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClientCmdReq.Merge(m, src)
+}
+func (m *ClientCmdReq) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClientCmdReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClientCmdReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClientCmdReq proto.InternalMessageInfo
+
+type isClientCmdReq_Command interface {
+	isClientCmdReq_Command()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ClientCmdReq_PutReq struct {
+	PutReq *PutReq `protobuf:"bytes,3,opt,name=putReq,proto3,oneof"`
+}
+type ClientCmdReq_DelReq struct {
+	DelReq *DelReq `protobuf:"bytes,4,opt,name=delReq,proto3,oneof"`
+}
+
+func (*ClientCmdReq_PutReq) isClientCmdReq_Command() {}
+func (*ClientCmdReq_DelReq) isClientCmdReq_Command() {}
+
+func (m *ClientCmdReq) GetCommand() isClientCmdReq_Command {
+	if m != nil {
+		return m.Command
+	}
+	return nil
+}
+
+func (m *ClientCmdReq) GetClientId() uint64 {
+	if m != nil {
+		return m.ClientId
+	}
+	return 0
+}
+
+func (m *ClientCmdReq) GetSequenceNumber() uint64 {
+	if m != nil {
+		return m.SequenceNumber
+	}
+	return 0
+}
+
+func (m *ClientCmdReq) GetPutReq() *PutReq {
+	if x, ok := m.GetCommand().(*ClientCmdReq_PutReq); ok {
+		return x.PutReq
+	}
+	return nil
+}
+
+func (m *ClientCmdReq) GetDelReq() *DelReq {
+	if x, ok := m.GetCommand().(*ClientCmdReq_DelReq); ok {
+		return x.DelReq
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ClientCmdReq) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ClientCmdReq_OneofMarshaler, _ClientCmdReq_OneofUnmarshaler, _ClientCmdReq_OneofSizer, []interface{}{
+		(*ClientCmdReq_PutReq)(nil),
+		(*ClientCmdReq_DelReq)(nil),
+	}
+}
+
+func _ClientCmdReq_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ClientCmdReq)
+	// command
+	switch x := m.Command.(type) {
+	case *ClientCmdReq_PutReq:
+		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.PutReq); err != nil {
+			return err
+		}
+	case *ClientCmdReq_DelReq:
+		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.DelReq); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ClientCmdReq.Command has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ClientCmdReq_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ClientCmdReq)
+	switch tag {
+	case 3: // command.putReq
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(PutReq)
+		err := b.DecodeMessage(msg)
+		m.Command = &ClientCmdReq_PutReq{msg}
+		return true, err
+	case 4: // command.delReq
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(DelReq)
+		err := b.DecodeMessage(msg)
+		m.Command = &ClientCmdReq_DelReq{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ClientCmdReq_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ClientCmdReq)
+	// command
+	switch x := m.Command.(type) {
+	case *ClientCmdReq_PutReq:
+		s := proto.Size(x.PutReq)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ClientCmdReq_DelReq:
+		s := proto.Size(x.DelReq)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type ClientCmdRes struct {
+	Status     ClientRpcStatus `protobuf:"varint,1,opt,name=status,proto3,enum=kv_client.ClientRpcStatus" json:"status,omitempty"`
+	LeaderHint *Address        `protobuf:"bytes,2,opt,name=leaderHint,proto3" json:"leaderHint,omitempty"`
+	// Types that are valid to be assigned to Response:
+	//	*ClientCmdRes_PutRes
+	//	*ClientCmdRes_DelRes
+	Response             isClientCmdRes_Response `protobuf_oneof:"response"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *ClientCmdRes) Reset()         { *m = ClientCmdRes{} }
+func (m *ClientCmdRes) String() string { return proto.CompactTextString(m) }
+func (*ClientCmdRes) ProtoMessage()    {}
+func (*ClientCmdRes) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{10}
+}
+func (m *ClientCmdRes) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClientCmdRes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClientCmdRes.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClientCmdRes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClientCmdRes.Merge(m, src)
+}
+func (m *ClientCmdRes) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClientCmdRes) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClientCmdRes.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClientCmdRes proto.InternalMessageInfo
+
+type isClientCmdRes_Response interface {
+	isClientCmdRes_Response()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ClientCmdRes_PutRes struct {
+	PutRes *PutRes `protobuf:"bytes,3,opt,name=putRes,proto3,oneof"`
+}
+type ClientCmdRes_DelRes struct {
+	DelRes *DelRes `protobuf:"bytes,4,opt,name=delRes,proto3,oneof"`
+}
+
+func (*ClientCmdRes_PutRes) isClientCmdRes_Response() {}
+func (*ClientCmdRes_DelRes) isClientCmdRes_Response() {}
+
+func (m *ClientCmdRes) GetResponse() isClientCmdRes_Response {
+	if m != nil {
+		return m.Response
+	}
+	return nil
+}
+
+func (m *ClientCmdRes) GetStatus() ClientRpcStatus {
+	if m != nil {
+		return m.Status
+	}
+	return ClientRpcStatus_OK
+}
+
+func (m *ClientCmdRes) GetLeaderHint() *Address {
+	if m != nil {
+		return m.LeaderHint
+	}
+	return nil
+}
+
+func (m *ClientCmdRes) GetPutRes() *PutRes {
+	if x, ok := m.GetResponse().(*ClientCmdRes_PutRes); ok {
+		return x.PutRes
+	}
+	return nil
+}
+
+func (m *ClientCmdRes) GetDelRes() *DelRes {
+	if x, ok := m.GetResponse().(*ClientCmdRes_DelRes); ok {
+		return x.DelRes
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ClientCmdRes) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ClientCmdRes_OneofMarshaler, _ClientCmdRes_OneofUnmarshaler, _ClientCmdRes_OneofSizer, []interface{}{
+		(*ClientCmdRes_PutRes)(nil),
+		(*ClientCmdRes_DelRes)(nil),
+	}
+}
+
+func _ClientCmdRes_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ClientCmdRes)
+	// response
+	switch x := m.Response.(type) {
+	case *ClientCmdRes_PutRes:
+		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.PutRes); err != nil {
+			return err
+		}
+	case *ClientCmdRes_DelRes:
+		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.DelRes); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ClientCmdRes.Response has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ClientCmdRes_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ClientCmdRes)
+	switch tag {
+	case 3: // response.putRes
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(PutRes)
+		err := b.DecodeMessage(msg)
+		m.Response = &ClientCmdRes_PutRes{msg}
+		return true, err
+	case 4: // response.delRes
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(DelRes)
+		err := b.DecodeMessage(msg)
+		m.Response = &ClientCmdRes_DelRes{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ClientCmdRes_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ClientCmdRes)
+	// response
+	switch x := m.Response.(type) {
+	case *ClientCmdRes_PutRes:
+		s := proto.Size(x.PutRes)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ClientCmdRes_DelRes:
+		s := proto.Size(x.DelRes)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type ClientQueryReq struct {
+	// Types that are valid to be assigned to Query:
+	//	*ClientQueryReq_GetReq
+	Query                isClientQueryReq_Query `protobuf_oneof:"query"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *ClientQueryReq) Reset()         { *m = ClientQueryReq{} }
+func (m *ClientQueryReq) String() string { return proto.CompactTextString(m) }
+func (*ClientQueryReq) ProtoMessage()    {}
+func (*ClientQueryReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{11}
+}
+func (m *ClientQueryReq) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClientQueryReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClientQueryReq.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClientQueryReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClientQueryReq.Merge(m, src)
+}
+func (m *ClientQueryReq) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClientQueryReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClientQueryReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClientQueryReq proto.InternalMessageInfo
+
+type isClientQueryReq_Query interface {
+	isClientQueryReq_Query()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ClientQueryReq_GetReq struct {
+	GetReq *GetReq `protobuf:"bytes,1,opt,name=getReq,proto3,oneof"`
+}
+
+func (*ClientQueryReq_GetReq) isClientQueryReq_Query() {}
+
+func (m *ClientQueryReq) GetQuery() isClientQueryReq_Query {
+	if m != nil {
+		return m.Query
+	}
+	return nil
+}
+
+func (m *ClientQueryReq) GetGetReq() *GetReq {
+	if x, ok := m.GetQuery().(*ClientQueryReq_GetReq); ok {
+		return x.GetReq
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ClientQueryReq) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ClientQueryReq_OneofMarshaler, _ClientQueryReq_OneofUnmarshaler, _ClientQueryReq_OneofSizer, []interface{}{
+		(*ClientQueryReq_GetReq)(nil),
+	}
+}
+
+func _ClientQueryReq_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ClientQueryReq)
+	// query
+	switch x := m.Query.(type) {
+	case *ClientQueryReq_GetReq:
+		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.GetReq); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ClientQueryReq.Query has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ClientQueryReq_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ClientQueryReq)
+	switch tag {
+	case 1: // query.getReq
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(GetReq)
+		err := b.DecodeMessage(msg)
+		m.Query = &ClientQueryReq_GetReq{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ClientQueryReq_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ClientQueryReq)
+	// query
+	switch x := m.Query.(type) {
+	case *ClientQueryReq_GetReq:
+		s := proto.Size(x.GetReq)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type ClientQueryRes struct {
+	Status     ClientRpcStatus `protobuf:"varint,1,opt,name=status,proto3,enum=kv_client.ClientRpcStatus" json:"status,omitempty"`
+	LeaderHint *Address        `protobuf:"bytes,2,opt,name=leaderHint,proto3" json:"leaderHint,omitempty"`
+	// Types that are valid to be assigned to Result:
+	//	*ClientQueryRes_Value
+	Result               isClientQueryRes_Result `protobuf_oneof:"result"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *ClientQueryRes) Reset()         { *m = ClientQueryRes{} }
+func (m *ClientQueryRes) String() string { return proto.CompactTextString(m) }
+func (*ClientQueryRes) ProtoMessage()    {}
+func (*ClientQueryRes) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6dd85e8a27c3107b, []int{12}
+}
+func (m *ClientQueryRes) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClientQueryRes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClientQueryRes.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClientQueryRes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClientQueryRes.Merge(m, src)
+}
+func (m *ClientQueryRes) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClientQueryRes) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClientQueryRes.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClientQueryRes proto.InternalMessageInfo
+
+type isClientQueryRes_Result interface {
+	isClientQueryRes_Result()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ClientQueryRes_Value struct {
+	Value *Value `protobuf:"bytes,3,opt,name=value,proto3,oneof"`
+}
+
+func (*ClientQueryRes_Value) isClientQueryRes_Result() {}
+
+func (m *ClientQueryRes) GetResult() isClientQueryRes_Result {
+	if m != nil {
+		return m.Result
+	}
+	return nil
+}
+
+func (m *ClientQueryRes) GetStatus() ClientRpcStatus {
+	if m != nil {
+		return m.Status
+	}
+	return ClientRpcStatus_OK
+}
+
+func (m *ClientQueryRes) GetLeaderHint() *Address {
+	if m != nil {
+		return m.LeaderHint
+	}
+	return nil
+}
+
+func (m *ClientQueryRes) GetValue() *Value {
+	if x, ok := m.GetResult().(*ClientQueryRes_Value); ok {
+		return x.Value
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ClientQueryRes) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ClientQueryRes_OneofMarshaler, _ClientQueryRes_OneofUnmarshaler, _ClientQueryRes_OneofSizer, []interface{}{
+		(*ClientQueryRes_Value)(nil),
+	}
+}
+
+func _ClientQueryRes_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ClientQueryRes)
+	// result
+	switch x := m.Result.(type) {
+	case *ClientQueryRes_Value:
+		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Value); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ClientQueryRes.Result has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ClientQueryRes_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ClientQueryRes)
+	switch tag {
+	case 3: // result.value
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Value)
+		err := b.DecodeMessage(msg)
+		m.Result = &ClientQueryRes_Value{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ClientQueryRes_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ClientQueryRes)
+	// result
+	switch x := m.Result.(type) {
+	case *ClientQueryRes_Value:
+		s := proto.Size(x.Value)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 func init() {
+	proto.RegisterEnum("kv_client.ClientRpcStatus", ClientRpcStatus_name, ClientRpcStatus_value)
 	proto.RegisterType((*GetReq)(nil), "kv_client.GetReq")
 	proto.RegisterType((*Value)(nil), "kv_client.Value")
 	proto.RegisterType((*PutReq)(nil), "kv_client.PutReq")
@@ -384,30 +1114,58 @@ func init() {
 	proto.RegisterType((*DelReq)(nil), "kv_client.DelReq")
 	proto.RegisterType((*DelRes)(nil), "kv_client.DelRes")
 	proto.RegisterType((*Address)(nil), "kv_client.Address")
+	proto.RegisterType((*RegisterClientReq)(nil), "kv_client.RegisterClientReq")
+	proto.RegisterType((*RegisterClientRes)(nil), "kv_client.RegisterClientRes")
+	proto.RegisterType((*ClientCmdReq)(nil), "kv_client.ClientCmdReq")
+	proto.RegisterType((*ClientCmdRes)(nil), "kv_client.ClientCmdRes")
+	proto.RegisterType((*ClientQueryReq)(nil), "kv_client.ClientQueryReq")
+	proto.RegisterType((*ClientQueryRes)(nil), "kv_client.ClientQueryRes")
 }
 
 func init() { proto.RegisterFile("kv_client_api.proto", fileDescriptor_6dd85e8a27c3107b) }
 
 var fileDescriptor_6dd85e8a27c3107b = []byte{
-	// 283 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xc1, 0x4a, 0xc3, 0x40,
-	0x10, 0x86, 0xb3, 0x8d, 0x4d, 0xec, 0xa0, 0x12, 0x47, 0x0f, 0x21, 0x87, 0x50, 0xf6, 0xd4, 0x83,
-	0xc6, 0xaa, 0x4f, 0xa0, 0x08, 0x3d, 0x78, 0x29, 0x11, 0x7a, 0x2d, 0x35, 0x1d, 0xb0, 0x24, 0xb8,
-	0x31, 0xb3, 0x29, 0xf8, 0x26, 0x7d, 0x24, 0x8f, 0x3e, 0x82, 0xc4, 0x17, 0x91, 0x6c, 0x62, 0xb1,
-	0xa4, 0xde, 0x66, 0xfe, 0x7f, 0xbf, 0xe5, 0xdf, 0x7f, 0xe1, 0x2c, 0x5d, 0xcf, 0x93, 0x6c, 0x45,
-	0xaf, 0x7a, 0xbe, 0xc8, 0x57, 0x51, 0x5e, 0x28, 0xad, 0x70, 0xb0, 0x15, 0x65, 0x00, 0xce, 0x84,
-	0x74, 0x4c, 0x6f, 0xe8, 0x81, 0x9d, 0xd2, 0xbb, 0x2f, 0x86, 0x62, 0x34, 0x88, 0xeb, 0x51, 0x5e,
-	0x41, 0x7f, 0xb6, 0xc8, 0x4a, 0xea, 0x5a, 0x78, 0x0e, 0xfd, 0x75, 0x6d, 0xf9, 0xbd, 0xa1, 0x18,
-	0x1d, 0xc5, 0xcd, 0x22, 0xc7, 0xe0, 0x4c, 0xcb, 0xfd, 0x97, 0xfd, 0x43, 0xc8, 0x96, 0x60, 0xf4,
-	0xc1, 0xe5, 0x32, 0x49, 0x88, 0xd9, 0x50, 0x87, 0xf1, 0xef, 0x5a, 0x47, 0x7c, 0xa0, 0x6c, 0x7f,
-	0x44, 0xbf, 0xf5, 0x18, 0x4f, 0xa0, 0xa7, 0xd2, 0x16, 0xed, 0xa9, 0x54, 0x5e, 0x83, 0x7b, 0xb7,
-	0x5c, 0x16, 0xc4, 0x8c, 0x08, 0x07, 0x2f, 0x8a, 0x75, 0xcb, 0x99, 0xb9, 0xd6, 0x72, 0x55, 0x68,
-	0x93, 0xe6, 0x38, 0x36, 0xf3, 0xcd, 0x46, 0x80, 0xfb, 0x38, 0x7b, 0xd2, 0xaa, 0x20, 0xbc, 0x00,
-	0x7b, 0x42, 0x1a, 0x4f, 0xa3, 0x6d, 0x55, 0x51, 0xd3, 0x53, 0xe0, 0xfd, 0x91, 0x4c, 0x3d, 0xd2,
-	0xc2, 0x4b, 0xb0, 0xa7, 0xe5, 0xee, 0xe9, 0xa6, 0x88, 0xa0, 0x23, 0xb1, 0xb4, 0x70, 0x6c, 0x52,
-	0x93, 0xa6, 0x1d, 0xa2, 0x79, 0x64, 0xd0, 0x91, 0x58, 0x5a, 0xf7, 0xde, 0x47, 0x15, 0x8a, 0xcf,
-	0x2a, 0x14, 0x5f, 0x55, 0x28, 0x36, 0xdf, 0xa1, 0xf5, 0xec, 0x98, 0xaf, 0xbc, 0xfd, 0x09, 0x00,
-	0x00, 0xff, 0xff, 0x25, 0x9c, 0x0a, 0xff, 0xe1, 0x01, 0x00, 0x00,
+	// 625 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0xcd, 0x6e, 0xd3, 0x4c,
+	0x14, 0xf5, 0x24, 0x8d, 0x93, 0xde, 0xaf, 0x9f, 0x49, 0xa7, 0x48, 0x18, 0x0b, 0x45, 0xd5, 0x2c,
+	0x50, 0xf8, 0x2b, 0xc5, 0x3c, 0x00, 0x34, 0x6d, 0x69, 0x51, 0x51, 0x5b, 0xa6, 0xa8, 0xdb, 0x2a,
+	0xb5, 0xaf, 0x4a, 0x94, 0x1f, 0x3b, 0x9e, 0x71, 0x45, 0x9f, 0x84, 0x3e, 0x04, 0x7b, 0x5e, 0x81,
+	0x25, 0x7b, 0x58, 0xa0, 0xf0, 0x22, 0xc8, 0x33, 0x13, 0xcb, 0x89, 0x1b, 0x84, 0x58, 0xb0, 0xf3,
+	0xcc, 0x3d, 0xf7, 0xce, 0x39, 0xe7, 0xce, 0x1d, 0xc3, 0x5a, 0xff, 0xf2, 0x2c, 0x18, 0xf4, 0x70,
+	0x24, 0xcf, 0xba, 0x71, 0x6f, 0x23, 0x4e, 0x22, 0x19, 0xd1, 0xe5, 0x7c, 0x93, 0x79, 0x60, 0xef,
+	0xa1, 0xe4, 0x38, 0xa6, 0x4d, 0xa8, 0xf6, 0xf1, 0xca, 0x25, 0xeb, 0xa4, 0xbd, 0xcc, 0xb3, 0x4f,
+	0xf6, 0x14, 0x6a, 0xa7, 0xdd, 0x41, 0x8a, 0xe5, 0x10, 0xbd, 0x0d, 0xb5, 0xcb, 0x2c, 0xe4, 0x56,
+	0xd6, 0x49, 0x7b, 0x85, 0xeb, 0x05, 0xdb, 0x04, 0xfb, 0x38, 0xbd, 0xb9, 0xd8, 0x82, 0x0c, 0x66,
+	0x32, 0x04, 0x75, 0xa1, 0x2e, 0xd2, 0x20, 0x40, 0x21, 0x54, 0x56, 0x83, 0x4f, 0x97, 0x19, 0xc5,
+	0x1d, 0x1c, 0xdc, 0x4c, 0xd1, 0x35, 0x31, 0x41, 0x1d, 0xa8, 0x44, 0x7d, 0x93, 0x5a, 0x89, 0xfa,
+	0xec, 0x19, 0xd4, 0xb7, 0xc2, 0x30, 0x41, 0x21, 0x28, 0x85, 0xa5, 0xf7, 0x91, 0x90, 0x26, 0x4f,
+	0x7d, 0x67, 0x7b, 0x71, 0x94, 0x48, 0xc5, 0xe6, 0x7f, 0xae, 0xbe, 0xd9, 0x1a, 0xac, 0x72, 0xbc,
+	0xe8, 0x09, 0x89, 0xc9, 0xb6, 0x72, 0x87, 0xe3, 0x98, 0x7d, 0x24, 0xe5, 0x5d, 0x41, 0x7d, 0xb0,
+	0x85, 0xec, 0xca, 0x54, 0x93, 0x75, 0x7c, 0x6f, 0x23, 0xb7, 0x74, 0xc3, 0xa0, 0xe2, 0xe0, 0x44,
+	0x21, 0xb8, 0x41, 0x52, 0x0f, 0x1a, 0x1a, 0xf1, 0x3a, 0x54, 0xc7, 0x2e, 0xf1, 0x7c, 0x4d, 0x7d,
+	0x80, 0x01, 0x76, 0x43, 0x4c, 0xf6, 0x7b, 0x23, 0xe9, 0x56, 0xd7, 0x49, 0xfb, 0x3f, 0x9f, 0x16,
+	0x6a, 0x1a, 0x29, 0xbc, 0x80, 0x62, 0x9f, 0x09, 0xac, 0xe8, 0xb3, 0xb6, 0x87, 0x61, 0x66, 0x4f,
+	0xf1, 0x00, 0x32, 0x77, 0xc0, 0x7d, 0x70, 0x04, 0x8e, 0x53, 0x1c, 0x05, 0x78, 0x98, 0x0e, 0xcf,
+	0x31, 0x31, 0x14, 0xe6, 0x76, 0xe9, 0x23, 0xb0, 0x63, 0xd5, 0x42, 0x43, 0x62, 0xb5, 0x40, 0x42,
+	0xf7, 0x76, 0xdf, 0xe2, 0x06, 0x92, 0x81, 0x43, 0xd5, 0x19, 0x77, 0xa9, 0x04, 0xd6, 0x2d, 0xcb,
+	0xc0, 0x1a, 0xd2, 0x59, 0x86, 0x7a, 0x10, 0x0d, 0x87, 0xdd, 0x51, 0xc8, 0xbe, 0xcf, 0x32, 0xff,
+	0x3b, 0x3b, 0x67, 0x2d, 0xab, 0xfc, 0x89, 0x65, 0xb9, 0x3a, 0xb1, 0x48, 0x9d, 0xc8, 0xd5, 0x89,
+	0x5c, 0x9d, 0x58, 0xa4, 0x4e, 0xe4, 0xea, 0x44, 0x07, 0xa0, 0x91, 0xa0, 0x88, 0xa3, 0x91, 0x40,
+	0xf6, 0x0a, 0x1c, 0x4d, 0xfa, 0x6d, 0x8a, 0xc9, 0x95, 0x31, 0xea, 0x42, 0x4d, 0x99, 0xd2, 0x37,
+	0x5b, 0x4a, 0x8f, 0x5f, 0x56, 0x4a, 0x43, 0x3a, 0x75, 0xa8, 0x8d, 0xb3, 0x44, 0xf6, 0x89, 0xcc,
+	0x15, 0xfa, 0x77, 0x46, 0xb5, 0xa7, 0xd3, 0xaa, 0x7d, 0x6a, 0x16, 0xe0, 0xea, 0x49, 0xd8, 0xb7,
+	0xcc, 0x04, 0x77, 0x1a, 0x60, 0x27, 0x28, 0xd2, 0x81, 0x7c, 0xf8, 0x00, 0x6e, 0xcd, 0x51, 0xa0,
+	0x36, 0x54, 0x8e, 0x0e, 0x9a, 0x16, 0x75, 0x00, 0x0e, 0x8f, 0xde, 0x9d, 0xbd, 0xd9, 0xdd, 0xda,
+	0xd9, 0xe5, 0x4d, 0xe2, 0x5f, 0x13, 0xa8, 0x1f, 0x9c, 0x9e, 0xc8, 0x28, 0x41, 0xfa, 0x18, 0xaa,
+	0x7b, 0x28, 0x69, 0xd9, 0x12, 0xaf, 0x74, 0x2a, 0xb3, 0xe8, 0x13, 0xa8, 0x1e, 0xa7, 0xb3, 0x68,
+	0x7d, 0x2d, 0xbd, 0x72, 0x2f, 0x99, 0x45, 0x37, 0xd5, 0xfb, 0x80, 0x12, 0x69, 0xf9, 0x6e, 0x7a,
+	0xe5, 0x86, 0x32, 0xcb, 0xff, 0x46, 0xc0, 0xd6, 0x32, 0xe8, 0x21, 0x38, 0xb3, 0x93, 0x4f, 0xef,
+	0x15, 0x32, 0x4a, 0x4f, 0x85, 0xf7, 0xbb, 0x68, 0x46, 0xe6, 0x25, 0xc0, 0xee, 0x07, 0x0c, 0x52,
+	0x89, 0xdb, 0xc3, 0x90, 0xde, 0x29, 0xb5, 0x4e, 0x8f, 0xb1, 0xb7, 0x20, 0x90, 0x55, 0x78, 0x01,
+	0x35, 0x75, 0x15, 0xe8, 0xdd, 0x12, 0x66, 0x7a, 0xd7, 0xbc, 0x85, 0x21, 0xc1, 0xac, 0x4e, 0xf3,
+	0xcb, 0xa4, 0x45, 0xbe, 0x4e, 0x5a, 0xe4, 0xc7, 0xa4, 0x45, 0xae, 0x7f, 0xb6, 0xac, 0x73, 0x5b,
+	0xfd, 0x12, 0x9e, 0xff, 0x0a, 0x00, 0x00, 0xff, 0xff, 0x04, 0x98, 0x48, 0xf2, 0x29, 0x06, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -542,6 +1300,136 @@ var _KVStore_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _KVStore_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "kv_client_api.proto",
+}
+
+// ClientClient is the client API for Client service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ClientClient interface {
+	RegisterClient(ctx context.Context, in *RegisterClientReq, opts ...grpc.CallOption) (*RegisterClientRes, error)
+	ExecuteCmd(ctx context.Context, in *ClientCmdReq, opts ...grpc.CallOption) (*ClientCmdRes, error)
+	Query(ctx context.Context, in *ClientQueryReq, opts ...grpc.CallOption) (*ClientQueryRes, error)
+}
+
+type clientClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewClientClient(cc *grpc.ClientConn) ClientClient {
+	return &clientClient{cc}
+}
+
+func (c *clientClient) RegisterClient(ctx context.Context, in *RegisterClientReq, opts ...grpc.CallOption) (*RegisterClientRes, error) {
+	out := new(RegisterClientRes)
+	err := c.cc.Invoke(ctx, "/kv_client.Client/RegisterClient", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *clientClient) ExecuteCmd(ctx context.Context, in *ClientCmdReq, opts ...grpc.CallOption) (*ClientCmdRes, error) {
+	out := new(ClientCmdRes)
+	err := c.cc.Invoke(ctx, "/kv_client.Client/ExecuteCmd", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *clientClient) Query(ctx context.Context, in *ClientQueryReq, opts ...grpc.CallOption) (*ClientQueryRes, error) {
+	out := new(ClientQueryRes)
+	err := c.cc.Invoke(ctx, "/kv_client.Client/Query", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ClientServer is the server API for Client service.
+type ClientServer interface {
+	RegisterClient(context.Context, *RegisterClientReq) (*RegisterClientRes, error)
+	ExecuteCmd(context.Context, *ClientCmdReq) (*ClientCmdRes, error)
+	Query(context.Context, *ClientQueryReq) (*ClientQueryRes, error)
+}
+
+func RegisterClientServer(s *grpc.Server, srv ClientServer) {
+	s.RegisterService(&_Client_serviceDesc, srv)
+}
+
+func _Client_RegisterClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterClientReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClientServer).RegisterClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv_client.Client/RegisterClient",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClientServer).RegisterClient(ctx, req.(*RegisterClientReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Client_ExecuteCmd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientCmdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClientServer).ExecuteCmd(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv_client.Client/ExecuteCmd",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClientServer).ExecuteCmd(ctx, req.(*ClientCmdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Client_Query_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientQueryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClientServer).Query(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv_client.Client/Query",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClientServer).Query(ctx, req.(*ClientQueryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Client_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "kv_client.Client",
+	HandlerType: (*ClientServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RegisterClient",
+			Handler:    _Client_RegisterClient_Handler,
+		},
+		{
+			MethodName: "ExecuteCmd",
+			Handler:    _Client_ExecuteCmd_Handler,
+		},
+		{
+			MethodName: "Query",
+			Handler:    _Client_Query_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -762,6 +1650,304 @@ func (m *Address) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *RegisterClientReq) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RegisterClientReq) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *RegisterClientRes) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RegisterClientRes) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Status != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.Status))
+	}
+	if m.ClientId != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.ClientId))
+	}
+	if m.LeaderHint != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.LeaderHint.Size()))
+		n1, err := m.LeaderHint.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ClientCmdReq) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClientCmdReq) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.ClientId != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.ClientId))
+	}
+	if m.SequenceNumber != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.SequenceNumber))
+	}
+	if m.Command != nil {
+		nn2, err := m.Command.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn2
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ClientCmdReq_PutReq) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.PutReq != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.PutReq.Size()))
+		n3, err := m.PutReq.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n3
+	}
+	return i, nil
+}
+func (m *ClientCmdReq_DelReq) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.DelReq != nil {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.DelReq.Size()))
+		n4, err := m.DelReq.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	return i, nil
+}
+func (m *ClientCmdRes) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClientCmdRes) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Status != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.Status))
+	}
+	if m.LeaderHint != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.LeaderHint.Size()))
+		n5, err := m.LeaderHint.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n5
+	}
+	if m.Response != nil {
+		nn6, err := m.Response.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn6
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ClientCmdRes_PutRes) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.PutRes != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.PutRes.Size()))
+		n7, err := m.PutRes.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n7
+	}
+	return i, nil
+}
+func (m *ClientCmdRes_DelRes) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.DelRes != nil {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.DelRes.Size()))
+		n8, err := m.DelRes.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n8
+	}
+	return i, nil
+}
+func (m *ClientQueryReq) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClientQueryReq) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Query != nil {
+		nn9, err := m.Query.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn9
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ClientQueryReq_GetReq) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.GetReq != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.GetReq.Size()))
+		n10, err := m.GetReq.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n10
+	}
+	return i, nil
+}
+func (m *ClientQueryRes) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClientQueryRes) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Status != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.Status))
+	}
+	if m.LeaderHint != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.LeaderHint.Size()))
+		n11, err := m.LeaderHint.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n11
+	}
+	if m.Result != nil {
+		nn12, err := m.Result.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += nn12
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ClientQueryRes_Value) MarshalTo(dAtA []byte) (int, error) {
+	i := 0
+	if m.Value != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintKvClientApi(dAtA, i, uint64(m.Value.Size()))
+		n13, err := m.Value.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n13
+	}
+	return i, nil
+}
 func encodeVarintKvClientApi(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -888,6 +2074,193 @@ func (m *Address) Size() (n int) {
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RegisterClientReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RegisterClientRes) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Status != 0 {
+		n += 1 + sovKvClientApi(uint64(m.Status))
+	}
+	if m.ClientId != 0 {
+		n += 1 + sovKvClientApi(uint64(m.ClientId))
+	}
+	if m.LeaderHint != nil {
+		l = m.LeaderHint.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ClientCmdReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ClientId != 0 {
+		n += 1 + sovKvClientApi(uint64(m.ClientId))
+	}
+	if m.SequenceNumber != 0 {
+		n += 1 + sovKvClientApi(uint64(m.SequenceNumber))
+	}
+	if m.Command != nil {
+		n += m.Command.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ClientCmdReq_PutReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PutReq != nil {
+		l = m.PutReq.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	return n
+}
+func (m *ClientCmdReq_DelReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DelReq != nil {
+		l = m.DelReq.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	return n
+}
+func (m *ClientCmdRes) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Status != 0 {
+		n += 1 + sovKvClientApi(uint64(m.Status))
+	}
+	if m.LeaderHint != nil {
+		l = m.LeaderHint.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	if m.Response != nil {
+		n += m.Response.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ClientCmdRes_PutRes) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PutRes != nil {
+		l = m.PutRes.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	return n
+}
+func (m *ClientCmdRes_DelRes) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DelRes != nil {
+		l = m.DelRes.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	return n
+}
+func (m *ClientQueryReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Query != nil {
+		n += m.Query.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ClientQueryReq_GetReq) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.GetReq != nil {
+		l = m.GetReq.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	return n
+}
+func (m *ClientQueryRes) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Status != 0 {
+		n += 1 + sovKvClientApi(uint64(m.Status))
+	}
+	if m.LeaderHint != nil {
+		l = m.LeaderHint.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
+	}
+	if m.Result != nil {
+		n += m.Result.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ClientQueryRes_Value) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Value != nil {
+		l = m.Value.Size()
+		n += 1 + l + sovKvClientApi(uint64(l))
 	}
 	return n
 }
@@ -1506,6 +2879,717 @@ func (m *Address) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RegisterClientReq) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RegisterClientReq: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RegisterClientReq: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RegisterClientRes) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RegisterClientRes: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RegisterClientRes: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= (ClientRpcStatus(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientId", wireType)
+			}
+			m.ClientId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ClientId |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderHint", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LeaderHint == nil {
+				m.LeaderHint = &Address{}
+			}
+			if err := m.LeaderHint.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClientCmdReq) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClientCmdReq: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClientCmdReq: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientId", wireType)
+			}
+			m.ClientId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ClientId |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SequenceNumber", wireType)
+			}
+			m.SequenceNumber = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SequenceNumber |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PutReq", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PutReq{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Command = &ClientCmdReq_PutReq{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DelReq", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &DelReq{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Command = &ClientCmdReq_DelReq{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClientCmdRes) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClientCmdRes: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClientCmdRes: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= (ClientRpcStatus(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderHint", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LeaderHint == nil {
+				m.LeaderHint = &Address{}
+			}
+			if err := m.LeaderHint.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PutRes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PutRes{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Response = &ClientCmdRes_PutRes{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DelRes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &DelRes{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Response = &ClientCmdRes_DelRes{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClientQueryReq) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClientQueryReq: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClientQueryReq: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GetReq", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &GetReq{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Query = &ClientQueryReq_GetReq{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKvClientApi(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClientQueryRes) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKvClientApi
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClientQueryRes: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClientQueryRes: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= (ClientRpcStatus(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderHint", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LeaderHint == nil {
+				m.LeaderHint = &Address{}
+			}
+			if err := m.LeaderHint.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKvClientApi
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKvClientApi
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Value{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Result = &ClientQueryRes_Value{v}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipKvClientApi(dAtA[iNdEx:])

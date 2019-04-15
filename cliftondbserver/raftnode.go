@@ -2,14 +2,13 @@ package cliftondbserver
 
 import (
 	"context"
-	"errors"
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/etcdserver/api/snap"
 	"go.etcd.io/etcd/etcdserver/api/v2stats"
 	"go.etcd.io/etcd/pkg/types"
 	"go.etcd.io/etcd/raft"
 	"go.etcd.io/etcd/raft/raftpb"
-	"go.etcd.io/etcd/wal"
+	"go.etcd.io/etcd/wal/walpb"
 	"go.uber.org/zap"
 	"net"
 	"net/http"
@@ -27,6 +26,7 @@ var defaultSnapshotCount uint64 = 10000
 const (
 	defaultClusterID    types.ID = 0x1000
 	defaultTickInterval          = time.Millisecond * 100
+	defaultSnapshotLag  int      = 10000
 )
 
 type Options interface {
@@ -65,6 +65,7 @@ type RaftNode struct {
 	// events to apply to state machine
 	proposeC    <-chan string
 	confChangeC <-chan raftpb.ConfChange
+	readStateC  chan<- raft.ReadState
 
 	// channel to report commit and error
 	commitC chan *string
@@ -87,15 +88,13 @@ type RaftNode struct {
 	snapshotIndex uint64
 	appliedIndex  uint64
 
-	Node        raft.Node
-	raftStorage *raft.MemoryStorage
-	wal         *wal.WAL
+	Node                  raft.Node
+	raftMemStorage        *raft.MemoryStorage
+	raftPersistentStorage *raftPersistentStorage
 
-	snapshotter      *snap.Snapshotter
-	snapshotterReady chan *snap.Snapshotter
-
-	snapCount uint64
-	transport *rafthttp.Transport
+	snapshotLag int
+	snapCount   uint64
+	transport   *rafthttp.Transport
 
 	stopc     chan struct{}
 	httpdonec chan struct{}
@@ -105,26 +104,32 @@ type RaftNode struct {
 
 	RaftURL    string
 	raftServer *http.Server
+
+	walDirPath      string
+	snapshotDirPath string
 }
 
-type RaftConfig struct {
+type ClusterConfig struct {
 	SelfId      uint
 	JoinCluster bool
 	Peers       []PeerEntry
+	StoragePath string
 }
 
-func RaftStandaloneConfig() RaftConfig {
-	return RaftConfig{
-		SelfId:      1,
+func RaftStandaloneConfig(id uint, path string) ClusterConfig {
+	return ClusterConfig{
+		SelfId:      id,
 		JoinCluster: false,
+		StoragePath: path,
 	}
 }
 
-func RaftClusterConfig(id uint, peers []PeerEntry) RaftConfig {
-	return RaftConfig{
+func RaftClusterConfig(id uint, peers []PeerEntry, path string) ClusterConfig {
+	return ClusterConfig{
 		SelfId:      id,
 		JoinCluster: true,
 		Peers:       peers,
+		StoragePath: path,
 	}
 }
 
@@ -136,34 +141,62 @@ func (r *RaftNode) CommitC() chan *string {
 	return r.commitC
 }
 
-func NewRaftNode(conf RaftConfig, proposeC <-chan string, confChangeC <-chan raftpb.ConfChange,
+func NewRaftNode(conf ClusterConfig, proposeC <-chan string, confChangeC <-chan raftpb.ConfChange,
 	options ...Options) (*RaftNode, error) {
-
+	var err error
+	lg, err := zap.NewProduction()
 	commitC := make(chan *string)
 	errorC := make(chan error)
 
+	walDir := path.Join(conf.StoragePath, walPath)
+	snapDir := path.Join(conf.StoragePath, snapshotPath)
+
 	n := &RaftNode{
-		ClusterId:    defaultClusterID,
-		Id:           types.ID(conf.SelfId),
-		Peers:        []PeerEntry{},
-		tickInterval: defaultTickInterval,
-		commitC:      commitC,
-		errorC:       errorC,
-		stopc:        make(chan struct{}),
-		proposeC:     proposeC,
-		confChangeC:  confChangeC,
+		ClusterId:      defaultClusterID,
+		Id:             types.ID(conf.SelfId),
+		Peers:          []PeerEntry{},
+		tickInterval:   defaultTickInterval,
+		commitC:        commitC,
+		errorC:         errorC,
+		stopc:          make(chan struct{}),
+		proposeC:       proposeC,
+		confChangeC:    confChangeC,
+		logger:         lg,
+		raftMemStorage: raft.NewMemoryStorage(),
+
+		snapshotLag: defaultSnapshotLag,
+
+		walDirPath:      walDir,
+		snapshotDirPath: snapDir,
 	}
 
 	for _, option := range options {
 		option.apply(n)
 	}
 
-	wl, err := n.replayWAL()
+	snapshotter := snap.New(zap.NewExample(), snapDir)
+	WAL, hardState, entries := readWALContent(lg, walDir, walpb.Snapshot{})
+
+	n.raftPersistentStorage = NewRaftPersistentStorage(WAL, snapshotter)
+
+	snapshot, err := snapshotter.Load()
 	if err != nil {
-		return nil, err
+		lg.Fatal("error loading snapshot",
+			zap.String("snapshot dirpath", snapDir),
+			zap.Error(err),
+		)
+	}
+	if err = n.raftMemStorage.ApplySnapshot(*snapshot); err != nil {
+		lg.Fatal("error applying snapshot", zap.Error(err))
 	}
 
-	n.wal = wl
+	if err = n.raftMemStorage.SetHardState(hardState); err != nil {
+		lg.Fatal("error setting raft hardstate", zap.Error(err))
+	}
+
+	if err = n.raftMemStorage.Append(entries); err != nil {
+		lg.Fatal("error appending raft entries to storage", zap.Error(err))
+	}
 
 	n.transport = &rafthttp.Transport{
 		Logger:      zap.NewExample(),
@@ -174,30 +207,39 @@ func NewRaftNode(conf RaftConfig, proposeC <-chan string, confChangeC <-chan raf
 		LeaderStats: v2stats.NewLeaderStats(strconv.Itoa(int(n.Id))),
 	}
 
-	n.logger, err = zap.NewProduction()
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = n.transport.Start()
-	if err != nil {
-		return nil, err
-	}
-
 	return n, nil
 }
 
-func (r *RaftNode) replayWAL() (*wal.WAL, error) {
-	return nil, errors.New("not implemented")
+func (r *RaftNode) ProcessEntries(entry []raftpb.Entry) bool {
+	return true
 }
 
-func (r *RaftNode) ProcessEntry(entry raftpb.Entry) {
+func (r *RaftNode) Start() {
+	var err error
+	peers := make([]raft.Peer, 0)
+	c := &raft.Config{
+		ID:              uint64(r.Id),
+		ElectionTick:    10,
+		HeartbeatTick:   2,
+		Storage:         r.raftMemStorage,
+		MaxInflightMsgs: 128,
+		MaxSizePerMsg:   1024 * 1024,
+		CheckQuorum:     true,
+		PreVote:         true,
+	}
+	r.Node = raft.StartNode(c, peers)
+	err = r.transport.Start()
+	if err != nil {
+		r.logger.Fatal("error starting raft transport", zap.Error(err))
+	}
+}
+
+func (r *RaftNode) Restart() {
 
 }
 func (r *RaftNode) Loop(ticker *time.Ticker) error {
 	var (
-		snapshot, err = r.raftStorage.Snapshot()
+		snapshot, err = r.raftMemStorage.Snapshot()
 	)
 
 	r.confState = snapshot.Metadata.ConfState
@@ -208,21 +250,40 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 		r.logger.Error("error reading snapshot from storage", zap.Error(err))
 		return err
 	}
-
+	tickerChan := ticker.C
+	var isLeader = false
 	for {
 		select {
-		case <-ticker.C:
+		case <-tickerChan:
 			r.Node.Tick()
 		case rd := <-r.Node.Ready():
-			err = r.wal.Save(rd.HardState, rd.Entries)
-			r.logger.Error("error saving entries to wal", zap.Error(err))
+
+			if len(rd.ReadStates) != 0 {
+				select {
+				case r.readStateC <- rd.ReadStates[len(rd.ReadStates)-1]:
+				case <-r.stopc:
+					return nil
+				}
+			}
+
+			isLeader = rd.RaftState == raft.StateLeader
+
+			if isLeader {
+				r.transport.Send(rd.Messages)
+			}
+
+			if err := r.raftPersistentStorage.Save(rd.HardState, rd.Entries); err != nil {
+				if r.logger != nil {
+					r.logger.Fatal("error saving entries to wal", zap.Error(err))
+				}
+			}
 
 			if !raft.IsEmptySnap(rd.Snapshot) {
 
-				if err = r.SaveSnap(rd.Snapshot); err != nil {
+				if err = r.raftPersistentStorage.SaveSnap(rd.Snapshot); err != nil {
 					r.logger.Error("error saving snapshot", zap.Error(err))
 				}
-				if err = r.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
+				if err = r.raftMemStorage.ApplySnapshot(rd.Snapshot); err != nil {
 					r.logger.Error("error applying snapshot", zap.Error(err))
 				}
 
@@ -231,51 +292,32 @@ func (r *RaftNode) Loop(ticker *time.Ticker) error {
 				}
 			}
 
-			err = r.raftStorage.Append(rd.Entries)
-			r.transport.Send(rd.Messages)
+			err = r.raftMemStorage.Append(rd.Entries)
 
-			for _, entry := range rd.CommittedEntries {
-
-				if entry.Type == raftpb.EntryConfChange {
-					var cc raftpb.ConfChange
-					if err := cc.Unmarshal(entry.Data); err != nil {
-						continue
-					}
-					r.Node.ApplyConfChange(cc)
-				}
-
-				if entry.Type == raftpb.EntryNormal {
-					r.ProcessEntry(entry)
-				}
-
+			if !isLeader {
+				msg := rd.Messages
+				r.transport.Send(msg)
 			}
 
+			r.ProcessEntries(rd.CommittedEntries)
 			r.Node.Advance()
+
 		case err := <-r.transport.ErrorC:
 			r.logger.Error("transport: error sending message", zap.Error(err))
 		case <-r.stopc:
+			tickerChan = nil
 			r.Stop()
 			return nil
 		}
 	}
 }
 
-func (r *RaftNode) ServeChannels() {
-	snapshot, err := r.raftStorage.Snapshot()
-	if err != nil {
-		r.logger.Fatal("error creating snapshot", zap.Error(err))
-	}
+func (r *RaftNode) applyEntries(entries []raftpb.Entry) {
 
-	r.confState = snapshot.Metadata.ConfState
-	r.snapshotIndex = snapshot.Metadata.Index
-	r.appliedIndex = snapshot.Metadata.Index
+}
 
-	defer func() {
-		err := r.wal.Close()
-		if err != nil {
-			r.logger.Error("error closing wal", zap.Error(err))
-		}
-	}()
+func (r *RaftNode) TriggerSnapshot() {
+
 }
 
 func (r *RaftNode) Propose(ctx context.Context, entryData []byte) error {
@@ -292,16 +334,12 @@ func (r *RaftNode) Stop() {
 	r.Node.Stop()
 }
 
-func (r *RaftNode) SaveSnap(snapshot raftpb.Snapshot) error {
-	return nil
-}
-
 func (r *RaftNode) PublishSnapshot(snapshot raftpb.Snapshot) error {
 	return nil
 }
 
 func (r *RaftNode) PublishEntries(entries []raftpb.Entry) bool {
-	return false
+	return true
 }
 
 func (r *RaftNode) StartRaftServer() error {

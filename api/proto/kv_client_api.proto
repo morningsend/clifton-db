@@ -34,7 +34,67 @@ message Address {
 }
 
 service KVStore {
-    rpc Get (GetReq) returns (Value) {}
-    rpc Put (PutReq) returns (PutRes) {}
-    rpc Delete (DelReq) returns (DelRes) {}
+    rpc Get (GetReq) returns (Value) {
+    }
+    rpc Put (PutReq) returns (PutRes) {
+    }
+    rpc Delete (DelReq) returns (DelRes) {
+    }
+}
+
+enum ClientRpcStatus {
+    OK = 0;
+    NOT_LEADER = 1;
+}
+
+message RegisterClientReq {
+
+}
+
+message RegisterClientRes {
+    ClientRpcStatus status = 1;
+    uint64 clientId = 2;
+    Address leaderHint = 3;
+}
+
+message ClientCmdReq {
+    uint64 clientId = 1;
+    uint64 sequenceNumber = 2;
+    oneof command {
+        PutReq putReq = 3;
+        DelReq delReq = 4;
+    }
+}
+
+message ClientCmdRes {
+    ClientRpcStatus status = 1;
+    Address leaderHint = 2;
+    oneof response {
+        PutRes putRes = 3;
+        DelRes delRes = 4;
+    }
+}
+
+message ClientQueryReq {
+    oneof query {
+        GetReq getReq = 1;
+    }
+}
+
+message ClientQueryRes {
+    ClientRpcStatus status = 1;
+    Address leaderHint = 2;
+    oneof result {
+        Value value = 3;
+    }
+}
+
+
+service Client {
+    rpc RegisterClient (RegisterClientReq) returns (RegisterClientRes) {
+    }
+    rpc ExecuteCmd (ClientCmdReq) returns (ClientCmdRes) {
+    }
+    rpc Query (ClientQueryReq) returns (ClientQueryRes) {
+    }
 }

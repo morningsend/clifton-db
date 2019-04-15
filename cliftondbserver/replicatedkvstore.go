@@ -3,8 +3,8 @@ package cliftondbserver
 import (
 	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
+	"github.com/zl14917/MastersProject/api/internal_request"
 	"github.com/zl14917/MastersProject/api/kv-client"
 	"github.com/zl14917/MastersProject/kvstore"
 	"github.com/zl14917/MastersProject/kvstore/types"
@@ -12,6 +12,9 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"net"
+	"net/http"
+	"sync"
+	"time"
 )
 
 type ReadConsistencyLevel int
@@ -36,23 +39,9 @@ var DefaultGetOption = GetOptions{
 	DefaultReadConsistency,
 }
 
-type KvStoreAction struct {
-	Type    KvStoreActionType
-	KeyHash uint32
-	Key     string
-	Value   []byte
-}
-
-type KvStoreActionType int
-
-const (
-	GetAction KvStoreActionType = iota
-	PutAction
-	DeleteAction
-)
-
 type ReplicatedKvStore struct {
-	r           *RaftNode
+	r *RaftNode
+
 	proposeC    chan<- string
 	commitC     <-chan *string
 	confChangeC chan<- raftpb.ConfChange
@@ -64,6 +53,12 @@ type ReplicatedKvStore struct {
 	listener *StoppableListener
 
 	logger *zap.Logger
+
+	reqBuilder *RequestBuilder
+
+	requestsInFlight sync.Map
+
+	requestTimeout time.Duration
 }
 
 func (s *ReplicatedKvStore) ServeKvStoreApi() {
@@ -71,7 +66,7 @@ func (s *ReplicatedKvStore) ServeKvStoreApi() {
 	kv_client.RegisterKVStoreServer(s.grpcServer, s.kvGrpcApiServer)
 }
 
-func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKvStore, error) {
+func (p *ReplicatedKvStore) NewReplicatedKvStore(conf ClusterConfig) (*ReplicatedKvStore, error) {
 	logger := zap.NewExample()
 	proposeC := make(chan string)
 	confChangeC := make(chan raftpb.ConfChange)
@@ -103,6 +98,8 @@ func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKv
 		listener:   sl,
 		r:          r,
 		logger:     logger,
+
+		requestTimeout: time.Second * 5000,
 	}
 
 	p.r = r
@@ -123,31 +120,50 @@ func (p *ReplicatedKvStore) NewReplicatedKvStore(conf RaftConfig) (*ReplicatedKv
 	return store, nil
 }
 
-func (b *ReplicatedKvStore) ProposePut(ctx context.Context, key string, value []byte) error {
-	var buf bytes.Buffer
-	putReq := KvStoreAction{
-		Key:   key,
-		Value: value,
-		Type:  PutAction,
-	}
-	if err := gob.NewEncoder(&buf).Encode(&putReq); err != nil {
-		return err
-	}
-
-	return b.r.Propose(ctx, buf.Bytes())
+func (kv *ReplicatedKvStore) RaftHandler() http.Handler {
+	return kv.r.transport.Handler()
 }
 
-func (st *ReplicatedKvStore) ProposeDelete(ctx context.Context, key string) error {
-	var buf bytes.Buffer
-	delReq := KvStoreAction{
-		Key:  key,
-		Type: DeleteAction,
-	}
-	if err := gob.NewEncoder(&buf).Encode(&delReq); err != nil {
-		return err
+func (kv *ReplicatedKvStore) KvGrpcServer() kv_client.KVStoreServer {
+	return kv.kvGrpcApiServer
+}
+
+func (kv *ReplicatedKvStore) handleRequest(ctx context.Context, req *internal_request.InternalRequest) (
+	*internal_request.InternalResponse, error) {
+
+	data, err := req.Marshal()
+	if err != nil {
+		return nil, err
 	}
 
-	return st.r.Propose(ctx, buf.Bytes())
+	reqCtx, cancel := context.WithTimeout(ctx, kv.requestTimeout)
+
+	defer cancel()
+
+	err = kv.r.Propose(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-reqCtx.Done():
+		return nil, reqCtx.Err()
+	default:
+
+	}
+	return nil, nil
+}
+
+func (kv *ReplicatedKvStore) ProposePut(ctx context.Context, key []byte, value []byte) (
+	*internal_request.InternalResponse, error) {
+	putReq := kv.reqBuilder.NewPutRequest(key, value)
+	return kv.handleRequest(ctx, putReq)
+}
+
+func (st *ReplicatedKvStore) ProposeDelete(ctx context.Context, key []byte) (
+	*internal_request.InternalResponse, error) {
+	deleteReq := st.reqBuilder.NewDeleteRequest(key)
+	return st.handleRequest(ctx, deleteReq)
 }
 
 func (st *ReplicatedKvStore) Get(ctx context.Context, key string, options GetOptions) ([]byte, error) {
