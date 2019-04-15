@@ -8,6 +8,7 @@ import (
 	"go.etcd.io/etcd/pkg/types"
 	"go.etcd.io/etcd/raft"
 	"go.etcd.io/etcd/raft/raftpb"
+	"go.etcd.io/etcd/wal"
 	"go.etcd.io/etcd/wal/walpb"
 	"go.uber.org/zap"
 	"net"
@@ -144,7 +145,7 @@ func (r *RaftNode) CommitC() chan *string {
 func NewRaftNode(conf ClusterConfig, proposeC <-chan string, confChangeC <-chan raftpb.ConfChange,
 	options ...Options) (*RaftNode, error) {
 	var err error
-	lg, err := zap.NewProduction()
+	lg := zap.NewExample()
 	commitC := make(chan *string)
 	errorC := make(chan error)
 
@@ -173,19 +174,43 @@ func NewRaftNode(conf ClusterConfig, proposeC <-chan string, confChangeC <-chan 
 	for _, option := range options {
 		option.apply(n)
 	}
+	var (
+		WAL         *wal.WAL
+		hardState   raftpb.HardState
+		entries     []raftpb.Entry
+		walsnapshot walpb.Snapshot
+		snapshot    *raftpb.Snapshot
+	)
 
 	snapshotter := snap.New(zap.NewExample(), snapDir)
-	WAL, hardState, entries := readWALContent(lg, walDir, walpb.Snapshot{})
+	snapshot, err = snapshotter.Load()
 
-	n.raftPersistentStorage = NewRaftPersistentStorage(WAL, snapshotter)
-
-	snapshot, err := snapshotter.Load()
 	if err != nil {
 		lg.Fatal("error loading snapshot",
-			zap.String("snapshot dirpath", snapDir),
+			zap.String("snapshotDirPath", snapDir),
 			zap.Error(err),
 		)
 	}
+
+	walsnapshot.Term, walsnapshot.Index = snapshot.Metadata.Term, snapshot.Metadata.Index
+
+	if !wal.Exist(walDir) {
+		WAL, err = wal.Create(lg, walDir, []byte{})
+		if err != nil {
+			lg.Fatal("failed to create wal",
+				zap.String("walDirPath", walDir),
+				zap.Error(err),
+			)
+		}
+		if err = WAL.Close(); err != nil {
+			lg.Fatal("error closing WAL", zap.Error(err))
+		}
+	}
+
+	WAL, hardState, entries = readWALContent(lg, walDir, walsnapshot)
+
+	n.raftPersistentStorage = NewRaftPersistentStorage(WAL, snapshotter)
+
 	if err = n.raftMemStorage.ApplySnapshot(*snapshot); err != nil {
 		lg.Fatal("error applying snapshot", zap.Error(err))
 	}
@@ -317,7 +342,21 @@ func (r *RaftNode) applyEntries(entries []raftpb.Entry) {
 }
 
 func (r *RaftNode) TriggerSnapshot() {
+	var err error
+	//get data from kv store.
+	snapshot, err := r.raftMemStorage.CreateSnapshot(r.appliedIndex, &r.confState, nil)
+	if err != nil {
+		if err == raft.ErrSnapOutOfDate {
+			return
+		}
+		r.logger.Fatal("cannot create snapshot", zap.Error(err))
+	}
 
+	err = r.raftPersistentStorage.SaveSnap(snapshot)
+	if err != nil {
+		r.logger.Fatal("error saving snapshot to persistent storage", zap.Error(err))
+	}
+	
 }
 
 func (r *RaftNode) Propose(ctx context.Context, entryData []byte) error {
