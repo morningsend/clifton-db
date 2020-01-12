@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+
+option go_package = "storagepb";
+
+enum LogType {
+    TxnLog = 0;
+}
+
+message LogEntry {
+    LogType type = 1;
+    bytes logData = 2;
+}
+
+message TxnCommand {
+    enum Command {
+        Set = 0;
+        Delete = 1;
+    }
+    bytes key = 1;
+    bytes value = 2;
+}
+
+message Timestamp {
+    uint64 physical = 1;
+    uint64 logical = 2;
+}
+
+message Txn {
+    uint64 sequence = 1;
+    Timestamp timestamp = 2;
+    repeated TxnCommand commands = 3;
+}
