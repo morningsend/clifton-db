@@ -5,7 +5,7 @@ import "path"
 type RaftOptions struct {
 	RaftWALDirPath   string
 	RaftSnapshotPath string
-	RaftNodeID       int64
+	RaftNodeID       uint64
 }
 
 type LocalStorageOptions struct {
@@ -19,9 +19,10 @@ type Options struct {
 	LocalStorageOptions
 }
 
-func DefaultServerOptions(raftId int64, localDbPath string) Options {
+func DefaultServerOptions(raftId uint64, localDbPath string) Options {
 	return Options{
 		RaftOptions: RaftOptions{
+			RaftNodeID:       raftId,
 			RaftWALDirPath:   path.Join(localDbPath, "raft/wal"),
 			RaftSnapshotPath: path.Join(localDbPath, "raft/snapshot"),
 		},

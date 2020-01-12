@@ -9,14 +9,16 @@ import (
 var (
 	app = kingpin.New("cliftondb", "CliftonDB command line")
 
-	server         = app.Command("server", "CliftonDB server")
-	clusterManager = app.Command("cluster", "CliftonDB cluster")
-	cli            = app.Command("cli", "CliftonDB CLI")
+	serverCmd         = app.Command("server", "CliftonDB server")
+	clusterManagerCmd = app.Command("cluster", "CliftonDB cluster")
+	cliCmd            = app.Command("cli", "CliftonDB CLI")
 )
 
 func main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
-	case server.FullCommand():
+	case serverCmd.FullCommand():
 		runServer()
+	case clusterManagerCmd.FullCommand():
+	case cliCmd.FullCommand():
 	}
 }
