@@ -12,7 +12,7 @@ type Peer struct {
 	Port     int    `toml:"port"`
 }
 
-type PeerList []Peer
+type PeerList = []Peer
 
 type ServerConfig struct {
 	RaftID uint64   `toml:"raft_id"`
@@ -33,5 +33,6 @@ func ServerConfigFromTOML(path string) (ServerConfig, error) {
 	if _, err := toml.Decode(string(content), &conf); err != nil {
 		return ServerConfig{}, err
 	}
+
 	return conf, nil
 }

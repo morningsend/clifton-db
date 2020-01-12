@@ -1,0 +1,19 @@
+raft_id = 1
+local_storage_path = "/tmp/cliftondb_data/node1"
+grpc_server = "tcp://localhost:6002"
+
+[[peers]]
+id = 1
+hostname = "localhost"
+port = 4041
+
+[[peers]]
+id = 2
+hostname = "localhost"
+port = 4042
+
+[[peers]]
+id = 3
+hostname = "localhost"
+port = 4043
+

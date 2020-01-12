@@ -16,8 +16,15 @@ func runServer() {
 		log.Fatalf("error reading config file at %s: %v", *configFile, err)
 	}
 
+	log.Printf("starting server with config: %v", config)
+
 	opts := server.DefaultServerOptions(config.RaftID, config.LocalStoragePath)
 	dbServer := server.New(opts)
+
+	if err := dbServer.StartUp(); err != nil {
+		log.Fatalf("server start up error: %v", err)
+	}
+
 	if err := dbServer.Run(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

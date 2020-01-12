@@ -10,8 +10,6 @@ type RaftOptions struct {
 
 type LocalStorageOptions struct {
 	LocalStorageDirPath string
-	Engine              string
-	BadgerEngineOptions string
 }
 
 type Options struct {
@@ -28,7 +26,6 @@ func DefaultServerOptions(raftId uint64, localDbPath string) Options {
 		},
 		LocalStorageOptions: LocalStorageOptions{
 			LocalStorageDirPath: path.Join(localDbPath, "db"),
-			Engine:              "badger",
 		},
 	}
 }
