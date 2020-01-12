@@ -1,5 +1,0 @@
-package cliftondbserver
-
-func network() {
-
-}
